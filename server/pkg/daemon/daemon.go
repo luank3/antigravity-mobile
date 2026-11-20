@@ -505,14 +505,28 @@ func (d *Daemon) handleEventsStream(s network.Stream) {
 	backlog, ch, unsub := d.acp.Subscribe(subReq.SinceSeq, subReq.SessionIDs)
 	defer unsub()
 
+	sentPerms := make(map[string]bool)
 	for _, ev := range backlog {
+		if ev.Kind == "permission_request" {
+			var p struct {
+				PermID string `json:"permId"`
+			}
+			if json.Unmarshal(ev.Payload, &p) == nil && p.PermID != "" {
+				sentPerms[p.PermID] = true
+			}
+		}
 		if err := protocol.WriteJSON(s, ev); err != nil {
 			return
 		}
 	}
 
-	// Ensure unresolved pending permissions are re-emitted on reconnect even if older than sinceSeq.
+	// Ensure unresolved pending permissions are re-emitted on reconnect even if older than sinceSeq
+	// (skipping any already delivered via the backlog to avoid duplicate prompts).
 	for _, perm := range d.acp.PendingPermissions("") {
+		if sentPerms[perm.PermID] {
+			continue
+		}
+		sentPerms[perm.PermID] = true
 		payload, _ := json.Marshal(perm)
 		if err := protocol.WriteJSON(s, protocol.EventEnvelope{
 			Seq:       0,
@@ -540,6 +554,17 @@ func (d *Daemon) handleEventsStream(s network.Stream) {
 		case ev, ok := <-ch:
 			if !ok {
 				return
+			}
+			if ev.Kind == "permission_request" {
+				var p struct {
+					PermID string `json:"permId"`
+				}
+				if json.Unmarshal(ev.Payload, &p) == nil && p.PermID != "" {
+					if sentPerms[p.PermID] {
+						continue
+					}
+					sentPerms[p.PermID] = true
+				}
 			}
 			if err := protocol.WriteJSON(s, ev); err != nil {
 				return

@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 /// Abstraction over native Android runtime capabilities (foreground keepalive
-/// service, partial WakeLock/screen-on flag, and local alert notifications).
+/// service, partial WakeLock/screen-on flag, local alert notifications, and permissions).
 abstract class AndroidRuntime {
   Future<bool> requestNotificationPermission();
+
+  Future<bool> requestCameraPermission();
 
   Future<void> startForegroundService({
     required String title,
@@ -33,6 +35,17 @@ class MethodChannelAndroidRuntime implements AndroidRuntime {
     if (!Platform.isAndroid) return true;
     try {
       final res = await _channel.invokeMethod<bool>('requestNotificationPermission');
+      return res ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  @override
+  Future<bool> requestCameraPermission() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final res = await _channel.invokeMethod<bool>('requestCameraPermission');
       return res ?? true;
     } catch (_) {
       return true;
@@ -92,6 +105,9 @@ class MethodChannelAndroidRuntime implements AndroidRuntime {
 class NoopAndroidRuntime implements AndroidRuntime {
   @override
   Future<bool> requestNotificationPermission() async => true;
+
+  @override
+  Future<bool> requestCameraPermission() async => true;
 
   @override
   Future<void> startForegroundService({

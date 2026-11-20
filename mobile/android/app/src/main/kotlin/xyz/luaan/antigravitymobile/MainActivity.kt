@@ -20,9 +20,11 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "xyz.luaan.antigravitymobile/android_runtime"
         private const val ALERTS_CHANNEL_ID = "agy_alerts"
         private const val REQ_POST_NOTIFICATIONS = 4201
+        private const val REQ_CAMERA = 4202
     }
 
     private var pendingPermResult: MethodChannel.Result? = null
+    private var pendingCameraPermResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -30,6 +32,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call: MethodCall, result: MethodChannel.Result ->
                 when (call.method) {
                     "requestNotificationPermission" -> handleRequestNotificationPermission(result)
+                    "requestCameraPermission" -> handleRequestCameraPermission(result)
                     "startForegroundService" -> handleStartForegroundService(call, result)
                     "stopForegroundService" -> handleStopForegroundService(result)
                     "setKeepScreenOn" -> handleSetKeepScreenOn(call, result)
@@ -51,6 +54,16 @@ class MainActivity : FlutterActivity() {
         pendingPermResult?.success(false)
         pendingPermResult = result
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_POST_NOTIFICATIONS)
+    }
+
+    private fun handleRequestCameraPermission(result: MethodChannel.Result) {
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            result.success(true)
+            return
+        }
+        pendingCameraPermResult?.success(false)
+        pendingCameraPermResult = result
+        requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
     }
 
     private fun handleStartForegroundService(call: MethodCall, result: MethodChannel.Result) {
@@ -164,6 +177,10 @@ class MainActivity : FlutterActivity() {
             val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             pendingPermResult?.success(granted)
             pendingPermResult = null
+        } else if (requestCode == REQ_CAMERA) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingCameraPermResult?.success(granted)
+            pendingCameraPermResult = null
         }
     }
 }

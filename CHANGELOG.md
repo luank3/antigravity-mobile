@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-11-20
+
+### Fixed
+- **Camera Permission for QR Scanner**: Implemented native Android runtime camera permission requests via `AndroidRuntime` method channel on `MainActivity`. `MobileScanner` is now safely gated until permission is granted, preventing CameraX `NullPointerException` crashes and "Camera unavailable" errors on physical Android devices.
+- **Hide Demo Machines in Production**: Set default `showDemoHost` to `kDebugMode`. Release builds on real devices now start with a clean onboarding screen without mock hosts or fake sessions. Persisted user preference in `SharedPreferences`.
+
+### Changed
+- **Removed UI Subtitle Clutter**: Cleaned up header text by removing `Noise XX End to End Encrypted` under Paired Machines on the Hosts screen and `Identity, Relays & NAT Policies` under Settings.
+- **Enhanced Camera Manifest Compatibility**: Declared `android.hardware.camera.autofocus` and `android.hardware.camera.front` as non-required features in `AndroidManifest.xml` for wider device compatibility.
+
 ## [1.0.1] - 2026-11-20
 
 ### Changed

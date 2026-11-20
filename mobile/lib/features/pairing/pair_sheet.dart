@@ -43,6 +43,30 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
   String _pairedName = '';
   bool _qrDetected = false;
 
+  bool _hasCameraPermission = false;
+  bool _checkingPermission = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCameraPermission();
+  }
+
+  Future<void> _checkCameraPermission() async {
+    if (!Platform.isAndroid) {
+      if (mounted) setState(() => _checkingPermission = false);
+      return;
+    }
+    final runtime = ref.read(androidRuntimeProvider);
+    final granted = await runtime.requestCameraPermission();
+    if (mounted) {
+      setState(() {
+        _hasCameraPermission = granted;
+        _checkingPermission = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _uriCtrl.dispose();
@@ -261,36 +285,86 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
           child: SizedBox(
             height: 220,
             child: Platform.isAndroid
-                ? MobileScanner(
-                    onDetect: (capture) {
-                      if (_qrDetected || _busy) return;
-                      for (final b in capture.barcodes) {
-                        final raw = b.rawValue ?? '';
-                        if (raw.startsWith('agy://pair')) {
-                          _qrDetected = true;
-                          unawaited(_startPair(uri: raw));
-                          break;
-                        }
-                      }
-                    },
-                    errorBuilder: (ctx, err, _) => Container(
-                      color: c.codeBg,
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.qr_code_scanner, size: 42, color: c.accent),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Camera unavailable on this device/emulator.\nUse Paste URI or Nearby LAN tab.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: c.textSecondary, fontSize: 12.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
+                ? (_checkingPermission
+                    ? Container(
+                        color: c.codeBg,
+                        alignment: Alignment.center,
+                        child: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : (_hasCameraPermission
+                        ? MobileScanner(
+                            onDetect: (capture) {
+                              if (_qrDetected || _busy) return;
+                              for (final b in capture.barcodes) {
+                                final raw = b.rawValue ?? '';
+                                if (raw.startsWith('agy://pair')) {
+                                  _qrDetected = true;
+                                  unawaited(_startPair(uri: raw));
+                                  break;
+                                }
+                              }
+                            },
+                            errorBuilder: (ctx, err, _) {
+                              final isPermission = err.errorCode == MobileScannerErrorCode.permissionDenied;
+                              return Container(
+                                color: c.codeBg,
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isPermission ? Icons.videocam_off_outlined : Icons.qr_code_scanner,
+                                      size: 40,
+                                      color: isPermission ? c.textSecondary : c.accent,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      isPermission
+                                          ? 'Camera permission denied.\nPlease grant permission in App Settings or use Paste URI.'
+                                          : 'Camera unavailable on this device/emulator.\nUse Paste URI or Nearby LAN tab.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: c.textSecondary, fontSize: 12.5),
+                                    ),
+                                    if (isPermission) ...[
+                                      const SizedBox(height: 10),
+                                      OutlinedButton(
+                                        onPressed: _checkCameraPermission,
+                                        child: const Text('Retry Permission'),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            color: c.codeBg,
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.videocam_off_outlined, size: 40, color: c.textSecondary),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Camera permission is required to scan QR codes.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: c.textSecondary, fontSize: 13),
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _checkCameraPermission,
+                                  icon: const Icon(Icons.lock_open, size: 16),
+                                  label: const Text('Grant Camera Permission'),
+                                ),
+                              ],
+                            ),
+                          )))
                 : Container(
                     color: c.codeBg,
                     alignment: Alignment.center,

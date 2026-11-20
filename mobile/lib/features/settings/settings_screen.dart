@@ -45,10 +45,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       'Settings',
                       style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
                     ),
-                    Text(
-                      'Identity, Relays & NAT Policies',
-                      style: TextStyle(color: c.textSecondary, fontSize: 12),
-                    ),
+
                   ],
                 ),
               ),

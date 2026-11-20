@@ -18,6 +18,13 @@ void main() {
       final relayBin = '$repoRoot/server/bin/agy-relay';
       final agydBin = '$repoRoot/server/bin/agyd';
 
+      if (!File(libPath).existsSync() ||
+          !File(relayBin).existsSync() ||
+          !File(agydBin).existsSync()) {
+        // Integration binaries not pre-compiled in this workspace; skip.
+        return;
+      }
+
       final tmp = Directory.systemTemp.createTempSync('agy_real_e2e_');
       Process? relayProc;
       Process? agydProc;

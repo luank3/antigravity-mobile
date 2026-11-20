@@ -32,7 +32,7 @@ class HostsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${state.hosts.length} Host(s) · Noise XX End-to-End Encrypted',
+                      '${state.hosts.length} Host(s)',
                       style: TextStyle(color: c.textSecondary, fontSize: 12),
                     ),
                   ],

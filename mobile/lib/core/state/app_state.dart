@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -76,7 +77,7 @@ class AppState {
     this.mobilePeerId = '',
     this.nodeError,
     this.isDarkTheme = true,
-    this.showDemoHost = true,
+    this.showDemoHost = kDebugMode,
     this.navTabIndex = 1,
     this.activeHostId = 'demo-home-workstation',
     this.activeSessionId = 'sess-nat-relay',
@@ -254,6 +255,7 @@ class AppController extends StateNotifier<AppState> {
   static const _prefsRelaysKey = 'agy_relays_v1';
   static const _prefsThemeKey = 'agy_dark_theme_v1';
   static const _prefsSettingsKey = 'agy_settings_v1';
+  static const _prefsShowDemoKey = 'agy_show_demo_v1';
 
   final P2PTransport transport;
   final String? supportDirOverride;
@@ -511,9 +513,10 @@ class AppController extends StateNotifier<AppState> {
       }
     } catch (_) {}
 
+    final showDemo = prefs?.getBool(_prefsShowDemoKey) ?? kDebugMode;
     final mergedHosts = <PairedHost>[
       ...loadedHosts,
-      if (state.showDemoHost) ...state.hosts.where((h) => h.isDemo),
+      if (showDemo) ...state.hosts.where((h) => h.isDemo),
     ];
 
     var identityPath = '';
@@ -1322,6 +1325,7 @@ class AppController extends StateNotifier<AppState> {
 
   void toggleDemoHost(bool show) {
     if (show == state.showDemoHost) return;
+    SharedPreferences.getInstance().then((p) => p.setBool(_prefsShowDemoKey, show)).catchError((_) => false);
     if (show) {
       final demo = _buildInitialState().hosts.first;
       final list = [...state.hosts.where((h) => !h.isDemo), demo];

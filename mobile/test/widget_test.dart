@@ -608,6 +608,9 @@ class _SpyAndroidRuntime implements AndroidRuntime {
   Future<bool> requestNotificationPermission() async => true;
 
   @override
+  Future<bool> requestCameraPermission() async => true;
+
+  @override
   Future<void> setKeepScreenOn(bool enabled) async {
     keepScreenOn = enabled;
   }

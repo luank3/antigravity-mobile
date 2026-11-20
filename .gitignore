@@ -1,0 +1,29 @@
+# Go binaries & local test outputs
+server/bin/
+*.log
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/native/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/src/main/jniLibs/
+mobile/android/.kotlin/
+*.iml
+
+# Local-only design previews (not part of the repo)
+docs/icon-preview/
+docs/ux-demo/
+
+# Signing secrets (never commit keystores or credentials)
+mobile/android/key.properties
+*.jks
+*.keystore
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store

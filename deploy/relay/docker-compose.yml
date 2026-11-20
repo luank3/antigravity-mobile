@@ -1,0 +1,25 @@
+services:
+  agy-relay:
+    build:
+      context: ../../server
+      dockerfile: ../deploy/relay/Dockerfile
+    container_name: agy-relay
+    restart: unless-stopped
+    ports:
+      - "4001:4001/tcp"
+      - "4001:4001/udp"
+    volumes:
+      - agy-relay-data:/data
+    command:
+      - "--public-host"
+      - "${AGY_RELAY_HOST:-relay.example.com}"
+      # Optional: restrict relay access using a hot-reloadable PeerID file in /data
+      # Reload without restarting via: docker kill -s HUP agy-relay
+      # - "--allow-file"
+      # - "/data/allowed_peers.txt"
+      # Or pass individual PeerIDs directly:
+      # - "--allow-peer"
+      # - "12D3KooWYourHostPeerID"
+
+volumes:
+  agy-relay-data:

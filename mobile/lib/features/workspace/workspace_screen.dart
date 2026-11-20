@@ -138,31 +138,106 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                   ),
                   const SizedBox(height: 10),
                 ],
-              if (_tab == 1)
-                for (final f in state.workspaceFiles) ...[
+              if (_tab == 1) ...[
+                if (state.currentWorkspacePath != '.' && state.currentWorkspacePath.isNotEmpty) ...[
                   SurfaceCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     onTap: () {
-                      controller.attachWorkspaceFile(f.path);
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(builder: (_) => const ActiveChatScreen()),
-                      );
+                      final parts = state.currentWorkspacePath
+                          .split('/')
+                          .where((p) => p.isNotEmpty && p != '.')
+                          .toList();
+                      final parent = parts.length <= 1
+                          ? '.'
+                          : parts.sublist(0, parts.length - 1).join('/');
+                      controller.browseWorkspaceDir(parent);
                     },
                     child: Row(
                       children: [
-                        Icon(Icons.description_outlined, color: c.accent),
-                        const SizedBox(width: 11),
+                        Icon(Icons.arrow_upward, size: 17, color: c.accent),
+                        const SizedBox(width: 9),
                         Expanded(
                           child: Text(
-                            f.path,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13, fontWeight: FontWeight.w600),
+                            state.currentWorkspacePath,
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: c.textSecondary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        StatusBadge(label: '@ Attach', fg: c.accent, bg: c.accentSoft),
+                        Text(
+                          '..',
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: c.textMuted,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
                 ],
+                for (final f in ([...state.workspaceFiles]
+                  ..sort((a, b) {
+                    if (a.isDir != b.isDir) return a.isDir ? -1 : 1;
+                    return a.path.toLowerCase().compareTo(b.path.toLowerCase());
+                  }))) ...[
+                  SurfaceCard(
+                    onTap: () async {
+                      if (f.isDir) {
+                        await controller.browseWorkspaceDir(f.path);
+                        return;
+                      }
+                      final lines = await controller.fetchWorkspaceFileContent(f.path);
+                      if (!context.mounted) return;
+                      await showUnifiedDiffSheet(
+                        context,
+                        title: f.path,
+                        subtitle: '${f.size} bytes',
+                        lines: lines,
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Icon(
+                          f.isDir ? Icons.folder_outlined : Icons.description_outlined,
+                          color: f.isDir ? c.warning : c.accent,
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Text(
+                            f.name.isNotEmpty ? f.name : f.path.split('/').last,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (f.isDir)
+                          Icon(Icons.chevron_right, size: 18, color: c.textMuted)
+                        else
+                          InkWell(
+                            onTap: () {
+                              controller.attachWorkspaceFile(f.path);
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(builder: (_) => const ActiveChatScreen()),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(999),
+                            child: StatusBadge(label: '@ Attach', fg: c.accent, bg: c.accentSoft),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ],
               if (_tab == 2)
                 for (final art in state.workspaceArtifacts) ...[
                   SurfaceCard(

@@ -29,7 +29,7 @@ class ChatMessageTile extends StatelessWidget {
       ChatMessageKind.thinking => _buildThinking(c),
       ChatMessageKind.plan => _buildPlan(c),
       ChatMessageKind.toolRead => _buildToolRead(c),
-      ChatMessageKind.toolEdit => _buildToolEdit(c),
+      ChatMessageKind.toolEdit => _EditToolCard(msg: msg, onViewDiff: onViewDiff),
       ChatMessageKind.terminal => _TerminalToolCard(msg: msg),
       ChatMessageKind.assistant => _buildAssistant(context, c),
       ChatMessageKind.permission => _buildPermission(c),
@@ -125,6 +125,14 @@ class ChatMessageTile extends StatelessWidget {
   }
 
   Widget _buildThinking(AppColors c) {
+    final trimmedText = msg.text.trim();
+    final hasBody = msg.thinkingSteps.isNotEmpty || trimmedText.isNotEmpty;
+    final label = msg.streaming
+        ? 'Thinking...'
+        : (msg.duration.isNotEmpty && msg.duration != 'Reasoning'
+            ? 'Thought for ${msg.duration}'
+            : 'Thought');
+
     return Container(
       decoration: BoxDecoration(
         color: c.surface,
@@ -132,9 +140,10 @@ class ChatMessageTile extends StatelessWidget {
         border: Border.all(color: c.border),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            onTap: onToggleThink,
+            onTap: hasBody ? onToggleThink : null,
             borderRadius: BorderRadius.circular(13),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -151,7 +160,7 @@ class ChatMessageTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      msg.streaming ? 'Thinking...' : 'Thought for ${msg.duration}',
+                      label,
                       style: TextStyle(
                         color: c.textSecondary,
                         fontSize: 12,
@@ -159,34 +168,38 @@ class ChatMessageTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Icon(
-                    msg.expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: c.textMuted,
-                  ),
+                  if (hasBody)
+                    Icon(
+                      msg.expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 18,
+                      color: c.textMuted,
+                    ),
                 ],
               ),
             ),
           ),
-          if (msg.expanded && (msg.thinkingSteps.isNotEmpty || msg.text.isNotEmpty)) ...[
+          if (msg.expanded && hasBody) ...[
             Divider(height: 1, color: c.border),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
               child: msg.thinkingSteps.isNotEmpty
                   ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: msg.thinkingSteps
-                          .map((s) => Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text(
-                                  '• $s',
-                                  style: TextStyle(color: c.textSecondary, fontSize: 12, height: 1.4),
-                                ),
-                              ))
-                          .toList(),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < msg.thinkingSteps.length; i++)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: i < msg.thinkingSteps.length - 1 ? 4 : 0,
+                            ),
+                            child: Text(
+                              '• ${msg.thinkingSteps[i].trim()}',
+                              style: TextStyle(color: c.textSecondary, fontSize: 12, height: 1.4),
+                            ),
+                          ),
+                      ],
                     )
                   : Text(
-                      msg.text,
+                      trimmedText,
                       style: TextStyle(color: c.textSecondary, fontSize: 12, height: 1.4),
                     ),
             ),
@@ -264,118 +277,6 @@ class ChatMessageTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildToolEdit(AppColors c) {
-    return Container(
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle, size: 15, color: c.success),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    msg.filePath,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  '+${msg.additions}',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    color: c.success,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '-${msg.deletions}',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    color: c.danger,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            color: c.codeBg,
-            padding: const EdgeInsets.all(10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: msg.diffLines.map((line) {
-                  Color fg = const Color(0xFFCBD5E1);
-                  Color? bg;
-                  if (line.startsWith('+')) {
-                    fg = const Color(0xFF86EFAC);
-                    bg = const Color(0x2422C55E);
-                  } else if (line.startsWith('-')) {
-                    fg = const Color(0xFFFCA5A5);
-                    bg = const Color(0x24EF4444);
-                  }
-                  return Container(
-                    color: bg,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      line,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 11,
-                        height: 1.45,
-                        color: fg,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: c.surfaceRaised.withValues(alpha: 0.45),
-              border: Border(top: BorderSide(color: c.border)),
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            alignment: Alignment.centerRight,
-            child: InkWell(
-              onTap: () => onViewDiff(msg.filePath, msg.diffLines),
-              borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Text(
-                  'View full diff →',
-                  style: TextStyle(
-                    color: c.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -647,6 +548,153 @@ class _TerminalToolCardState extends State<_TerminalToolCard> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditToolCard extends StatefulWidget {
+  final ChatMessage msg;
+  final void Function(String filePath, List<String> lines) onViewDiff;
+
+  const _EditToolCard({
+    required this.msg,
+    required this.onViewDiff,
+  });
+
+  @override
+  State<_EditToolCard> createState() => _EditToolCardState();
+}
+
+class _EditToolCardState extends State<_EditToolCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final msg = widget.msg;
+    final hasDiff = msg.diffLines.isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: hasDiff ? () => setState(() => _expanded = !_expanded) : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, size: 15, color: c.success),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      msg.filePath,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '+${msg.additions}',
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      color: c.success,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '-${msg.deletions}',
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      color: c.danger,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (hasDiff) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: c.textMuted,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (_expanded && hasDiff) ...[
+            Container(
+              color: c.codeBg,
+              padding: const EdgeInsets.all(10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: msg.diffLines.map((line) {
+                    Color fg = const Color(0xFFCBD5E1);
+                    Color? bg;
+                    if (line.startsWith('+')) {
+                      fg = const Color(0xFF86EFAC);
+                      bg = const Color(0x2422C55E);
+                    } else if (line.startsWith('-')) {
+                      fg = const Color(0xFFFCA5A5);
+                      bg = const Color(0x24EF4444);
+                    }
+                    return Container(
+                      color: bg,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        line,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          height: 1.45,
+                          color: fg,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: c.surfaceRaised.withValues(alpha: 0.45),
+                border: Border(top: BorderSide(color: c.border)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              alignment: Alignment.centerRight,
+              child: InkWell(
+                onTap: () => widget.onViewDiff(msg.filePath, msg.diffLines),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'View full diff →',
+                    style: TextStyle(
+                      color: c.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

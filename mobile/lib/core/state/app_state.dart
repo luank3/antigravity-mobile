@@ -63,6 +63,7 @@ class AppState {
   final Map<String, List<ChatMessage>> messagesBySession;
   final List<String> attachedWorkspaceFiles;
   final List<UploadedAttachment> stagedUploads;
+  final String currentWorkspacePath;
   final List<WorkspaceEntry> workspaceFiles;
   final List<GitChange> workspaceChanges;
   final List<ArtifactSummary> workspaceArtifacts;
@@ -105,6 +106,7 @@ class AppState {
     this.messagesBySession = const {},
     this.attachedWorkspaceFiles = const [],
     this.stagedUploads = const [],
+    this.currentWorkspacePath = '.',
     this.workspaceFiles = const [],
     this.workspaceChanges = const [],
     this.workspaceArtifacts = const [],
@@ -179,6 +181,7 @@ class AppState {
     Map<String, List<ChatMessage>>? messagesBySession,
     List<String>? attachedWorkspaceFiles,
     List<UploadedAttachment>? stagedUploads,
+    String? currentWorkspacePath,
     List<WorkspaceEntry>? workspaceFiles,
     List<GitChange>? workspaceChanges,
     List<ArtifactSummary>? workspaceArtifacts,
@@ -225,6 +228,7 @@ class AppState {
       attachedWorkspaceFiles:
           attachedWorkspaceFiles ?? this.attachedWorkspaceFiles,
       stagedUploads: stagedUploads ?? this.stagedUploads,
+      currentWorkspacePath: currentWorkspacePath ?? this.currentWorkspacePath,
       workspaceFiles: workspaceFiles ?? this.workspaceFiles,
       workspaceChanges: workspaceChanges ?? this.workspaceChanges,
       workspaceArtifacts: workspaceArtifacts ?? this.workspaceArtifacts,
@@ -261,6 +265,7 @@ class AppController extends StateNotifier<AppState> {
   final String? supportDirOverride;
   final AndroidRuntime androidRuntime;
   final Map<String, String> _pendingUserEchoes = {};
+  final Map<String, DateTime> _thinkingStartTimes = {};
   final Set<String> _cancelledUploadPaths = {};
   StreamSubscription<BridgeEvent>? _eventSub;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
@@ -927,16 +932,31 @@ class AppController extends StateNotifier<AppState> {
     }
   }
 
+  String _formatElapsedThinking(String msgId) {
+    final started = _thinkingStartTimes.remove(msgId);
+    if (started == null) return '';
+    final ms = DateTime.now().difference(started).inMilliseconds;
+    if (ms < 1000) {
+      return '${(ms / 1000).clamp(0.1, 0.9).toStringAsFixed(1)}s';
+    }
+    if (ms < 10000) {
+      return '${(ms / 1000).toStringAsFixed(1)}s';
+    }
+    return '${(ms / 1000).round()}s';
+  }
+
   void _finalizeStreaming(String sessionId) {
     final current = List<ChatMessage>.from(state.messagesBySession[sessionId] ?? const []);
     var changed = false;
     for (var i = 0; i < current.length; i++) {
       if (current[i].streaming) {
+        String? nextDuration;
+        if (current[i].kind == ChatMessageKind.thinking && current[i].duration.isEmpty) {
+          nextDuration = _formatElapsedThinking(current[i].id);
+        }
         current[i] = current[i].copyWith(
           streaming: false,
-          duration: current[i].kind == ChatMessageKind.thinking && current[i].duration.isEmpty
-              ? 'Reasoning'
-              : null,
+          duration: nextDuration,
         );
         changed = true;
       }
@@ -985,11 +1005,13 @@ class AppController extends StateNotifier<AppState> {
     } else {
       _finalizeStreaming(sessionId);
       final afterFinalize = List<ChatMessage>.from(state.messagesBySession[sessionId] ?? const []);
+      final msgId = 'th-${DateTime.now().microsecondsSinceEpoch}';
+      _thinkingStartTimes[msgId] = DateTime.now();
       afterFinalize.add(ChatMessage(
-        id: 'th-${DateTime.now().microsecondsSinceEpoch}',
+        id: msgId,
         kind: ChatMessageKind.thinking,
         text: chunk,
-        duration: 'Reasoning',
+        duration: '',
         streaming: true,
       ));
       state = state.copyWith(
@@ -1620,16 +1642,21 @@ class AppController extends StateNotifier<AppState> {
     }
   }
 
-  Future<void> refreshWorkspaceData() async {
+  Future<void> browseWorkspaceDir(String path) async {
+    await refreshWorkspaceData(treePath: path.isEmpty ? '.' : path);
+  }
+
+  Future<void> refreshWorkspaceData({String? treePath}) async {
     final host = state.activeHost;
     final sess = state.activeSession;
     if (host == null || host.isDemo || sess == null) return;
 
+    final targetPath = treePath ?? state.currentWorkspacePath;
     state = state.copyWith(loadingWorkspace: true);
     try {
       final results = await Future.wait([
         transport.rpcCall(host.peerId, 'workspace/git_status', {'cwd': sess.cwd}),
-        transport.rpcCall(host.peerId, 'workspace/tree', {'root': sess.cwd, 'path': '.'}),
+        transport.rpcCall(host.peerId, 'workspace/tree', {'root': sess.cwd, 'path': targetPath}),
         transport.rpcCall(host.peerId, 'artifacts/list', {'sessionId': sess.id}),
       ]);
 
@@ -1654,6 +1681,7 @@ class AppController extends StateNotifier<AppState> {
       if (mounted) {
         state = state.copyWith(
           loadingWorkspace: false,
+          currentWorkspacePath: targetPath,
           workspaceChanges: changes,
           workspaceFiles: files,
           workspaceArtifacts: artifacts,
@@ -1665,6 +1693,33 @@ class AppController extends StateNotifier<AppState> {
     } catch (_) {
       if (mounted) state = state.copyWith(loadingWorkspace: false);
     }
+  }
+
+  Future<List<String>> fetchWorkspaceFileContent(String relPath) async {
+    final host = state.activeHost;
+    final sess = state.activeSession;
+    if (host == null || host.isDemo || sess == null) {
+      return ['(Preview unavailable for demo file $relPath)'];
+    }
+    try {
+      final res = await transport.rpcCall(host.peerId, 'workspace/read_file', {
+        'root': sess.cwd,
+        'path': relPath,
+        'maxBytes': 65536,
+      });
+      if (res is Map<String, dynamic>) {
+        final content = (res['content'] ?? '').toString();
+        final truncated = res['truncated'] == true;
+        final lines = content.split('\n');
+        if (truncated) {
+          lines.add('... (truncated)');
+        }
+        return lines;
+      }
+    } catch (e) {
+      return ['Error reading file: $e'];
+    }
+    return ['(Empty file)'];
   }
 
   Future<List<String>> fetchGitDiff(String relPath) async {

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-11-20
+
+### Fixed
+- **Thought Card Duration & Trailing Whitespace**:
+  - Tracked actual elapsed thinking time so the header displays `Thought for Xs` (or `Thought` when duration isn't available) instead of `Thought for Reasoning`.
+  - Trimmed trailing newlines from thought text and removed extra bottom padding inside expanded reasoning cards.
+- **Hide Output on All Tool Calls by Default**:
+  - Converted edit diff cards (`_EditToolCard`) to collapsible cards with diff output hidden by default, matching shell tool cards (`_TerminalToolCard`).
+- **Workspace Folder & File Browsing**:
+  - Updated the Workspace Files tab to distinguish folders (`isDir`) from files: tapping a folder navigates into it via `workspace/tree` with a parent (`..`) navigation bar, while tapping a file opens a preview sheet via `workspace/read_file` and `@ Attach` attaches it to chat.
+
 ## [1.0.7] - 2026-11-20
 
 ### Changed

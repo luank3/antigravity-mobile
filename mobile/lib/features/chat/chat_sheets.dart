@@ -126,7 +126,7 @@ Future<void> showModeAndModelSheet(BuildContext context, WidgetRef ref) {
 
       return Container(
         constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.78),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
@@ -137,41 +137,128 @@ Future<void> showModeAndModelSheet(BuildContext context, WidgetRef ref) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Mode & Model', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.borderStrong,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
-              Text('EXECUTION MODE', style: TextStyle(color: c.textMuted, fontSize: 10.5, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Mode & Model', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'EXECUTION MODE',
+                style: TextStyle(
+                  color: c.textMuted,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 8),
               Wrap(
-                spacing: 8,
-                runSpacing: 6,
+                spacing: 7,
+                runSpacing: 7,
                 children: modeChoices.map((m) {
                   final selected = currentMode.toLowerCase() == m.$1.toLowerCase() ||
                       currentMode.toLowerCase() == m.$2.toLowerCase();
-                  return ChoiceChip(
-                    label: Text(m.$2),
-                    selected: selected,
-                    onSelected: (_) {
+                  return InkWell(
+                    onTap: () {
                       ref.read(appControllerProvider.notifier).updateSessionModeAndModel(mode: m.$1);
                       Navigator.of(ctx).pop();
                     },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: selected ? c.accentSoft : c.surfaceRaised,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: selected ? c.accent : c.border,
+                        ),
+                      ),
+                      child: Text(
+                        m.$2,
+                        style: TextStyle(
+                          color: selected ? c.accent : c.text,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 14),
-              Text('MODEL', style: TextStyle(color: c.textMuted, fontSize: 10.5, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              for (final model in modelChoices)
-                ListTile(
-                  dense: true,
-                  title: Text(model.$2),
-                  trailing: (currentModel == model.$1 || currentModel == model.$2)
-                      ? Icon(Icons.check, color: c.accent)
-                      : null,
-                  onTap: () {
-                    ref.read(appControllerProvider.notifier).updateSessionModeAndModel(model: model.$1);
-                    Navigator.of(ctx).pop();
-                  },
+              const SizedBox(height: 16),
+              Text(
+                'MODEL',
+                style: TextStyle(
+                  color: c.textMuted,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
                 ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: c.surfaceRaised,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: c.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < modelChoices.length; i++) ...[
+                      if (i > 0) Divider(height: 1, color: c.border),
+                      Builder(builder: (context) {
+                        final model = modelChoices[i];
+                        final selected = currentModel == model.$1 || currentModel == model.$2;
+                        return InkWell(
+                          onTap: () {
+                            ref.read(appControllerProvider.notifier).updateSessionModeAndModel(model: model.$1);
+                            Navigator.of(ctx).pop();
+                          },
+                          child: Container(
+                            color: selected ? c.accentSoft : Colors.transparent,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    model.$2,
+                                    style: TextStyle(
+                                      color: selected ? c.accent : c.text,
+                                      fontSize: 13.5,
+                                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                if (selected)
+                                  Icon(Icons.check_circle, size: 18, color: c.accent),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),

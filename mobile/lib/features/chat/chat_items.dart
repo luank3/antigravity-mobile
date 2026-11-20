@@ -30,7 +30,7 @@ class ChatMessageTile extends StatelessWidget {
       ChatMessageKind.plan => _buildPlan(c),
       ChatMessageKind.toolRead => _buildToolRead(c),
       ChatMessageKind.toolEdit => _buildToolEdit(c),
-      ChatMessageKind.terminal => _buildTerminal(c),
+      ChatMessageKind.terminal => _TerminalToolCard(msg: msg),
       ChatMessageKind.assistant => _buildAssistant(context, c),
       ChatMessageKind.permission => _buildPermission(c),
     };
@@ -351,69 +351,27 @@ class ChatMessageTile extends StatelessWidget {
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => onViewDiff(msg.filePath, msg.diffLines),
-              child: const Text('View full diff →', style: TextStyle(fontSize: 12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTerminal(AppColors c) {
-    return Container(
-      decoration: BoxDecoration(
-        color: c.codeBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: c.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              border: Border(bottom: BorderSide(color: c.border)),
+              color: c.surfaceRaised.withValues(alpha: 0.45),
+              border: Border(top: BorderSide(color: c.border)),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '\$ ${msg.command}',
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                      color: Color(0xFFE2E8F0),
-                    ),
-                    overflow: TextOverflow.ellipsis,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () => onViewDiff(msg.filePath, msg.diffLines),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text(
+                  'View full diff →',
+                  style: TextStyle(
+                    color: c.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  msg.detail,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF4ADE80),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(10),
-            child: Text(
-              msg.text,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 11,
-                height: 1.45,
-                color: Color(0xFFCBD5E1),
               ),
             ),
           ),
@@ -471,7 +429,7 @@ class ChatMessageTile extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Approval Required · Tool Permission',
+                  'Permission Required',
                   style: TextStyle(
                     color: headerColor,
                     fontSize: 12.5,
@@ -504,7 +462,9 @@ class ChatMessageTile extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'cwd: ${msg.cwd} · Sandbox: ${msg.sandbox}',
+            msg.sandbox.isNotEmpty && msg.sandbox != 'Off'
+                ? '${msg.cwd} · Sandbox: ${msg.sandbox}'
+                : msg.cwd,
             style: TextStyle(fontFamily: 'monospace', color: c.textSecondary, fontSize: 11),
           ),
           if (isPending) ...[
@@ -576,6 +536,117 @@ class ChatMessageTile extends StatelessWidget {
                 ],
               ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TerminalToolCard extends StatefulWidget {
+  final ChatMessage msg;
+  const _TerminalToolCard({required this.msg});
+
+  @override
+  State<_TerminalToolCard> createState() => _TerminalToolCardState();
+}
+
+class _TerminalToolCardState extends State<_TerminalToolCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final msg = widget.msg;
+    final hasOutput = msg.text.trim().isNotEmpty;
+    final detailLower = msg.detail.toLowerCase();
+    final isError = detailLower.contains('fail') ||
+        detailLower.contains('err') ||
+        (detailLower.contains('exit') && !detailLower.contains('exit 0'));
+    final isRunning = msg.streaming || detailLower.contains('run');
+    final statusColor = isError
+        ? c.danger
+        : isRunning
+            ? c.accent
+            : c.success;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: hasOutput ? () => setState(() => _expanded = !_expanded) : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.terminal, size: 15, color: statusColor),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      msg.command.isNotEmpty ? msg.command : 'Shell',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: c.text,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (msg.detail.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      msg.detail,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
+                  if (hasOutput) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: c.textMuted,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (_expanded && hasOutput)
+            Container(
+              decoration: BoxDecoration(
+                color: c.codeBg,
+                border: Border(top: BorderSide(color: c.border)),
+              ),
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(10),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SelectableText(
+                    msg.text.trimRight(),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      height: 1.45,
+                      color: Color(0xFFCBD5E1),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

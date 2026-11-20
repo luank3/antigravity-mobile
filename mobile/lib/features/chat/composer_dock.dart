@@ -39,10 +39,10 @@ class _ComposerDockState extends ConsumerState<ComposerDock> {
 
     return Container(
       decoration: BoxDecoration(
-        color: c.surface,
+        color: c.navBg,
         border: Border(top: BorderSide(color: c.border)),
       ),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      padding: const EdgeInsets.fromLTRB(11, 8, 11, 10),
       child: SafeArea(
         top: false,
         child: Column(
@@ -55,68 +55,65 @@ class _ComposerDockState extends ConsumerState<ComposerDock> {
                 runSpacing: 6,
                 children: [
                   for (final f in state.attachedWorkspaceFiles)
-                    InputChip(
-                      label: Text('@$f', style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
-                      onDeleted: () => controller.removeWorkspaceFile(f),
+                    _AttachedChip(
+                      label: '@$f',
+                      onRemove: () => controller.removeWorkspaceFile(f),
                     ),
                   for (final up in state.stagedUploads)
-                    InputChip(
-                      avatar: up.isImage &&
+                    _AttachedChip(
+                      leading: up.isImage &&
                               up.localPath.isNotEmpty &&
                               File(up.localPath).existsSync()
                           ? SizedBox(
-                              width: 22,
-                              height: 22,
+                              width: 18,
+                              height: 18,
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
                                   ClipRRect(
-                                    borderRadius: BorderRadius.circular(5),
+                                    borderRadius: BorderRadius.circular(4),
                                     child: Image.file(
                                       File(up.localPath),
-                                      width: 22,
-                                      height: 22,
+                                      width: 18,
+                                      height: 18,
                                       fit: BoxFit.cover,
                                     ),
                                   ),
                                   if (up.uploading)
                                     const SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      width: 10,
+                                      height: 10,
+                                      child: CircularProgressIndicator(strokeWidth: 1.8),
                                     ),
                                 ],
                               ),
                             )
                           : (up.uploading
                               ? SizedBox(
-                                  width: 14,
-                                  height: 14,
+                                  width: 12,
+                                  height: 12,
                                   child: CircularProgressIndicator(
                                     value: up.progress > 0 ? up.progress : null,
-                                    strokeWidth: 2,
+                                    strokeWidth: 1.8,
                                   ),
                                 )
                               : Icon(
-                                  up.error != null ? Icons.error_outline : Icons.upload_file,
-                                  size: 15,
-                                  color: up.error != null ? c.danger : c.success,
+                                  up.error != null ? Icons.error_outline : Icons.insert_drive_file_outlined,
+                                  size: 13,
+                                  color: up.error != null ? c.danger : c.accent,
                                 )),
-                      label: Text(
-                        up.uploading
-                            ? '${up.filename} ${(up.progress * 100).round()}%'
-                            : up.error != null
-                                ? '${up.filename} (failed)'
-                                : '${up.filename} (/tmp)',
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                      ),
-                      deleteButtonTooltipMessage:
-                          up.uploading ? 'Cancel upload' : 'Remove attachment',
-                      onDeleted: () => controller.removeStagedUpload(up),
+                      label: up.uploading
+                          ? '${up.filename} ${(up.progress * 100).round()}%'
+                          : up.error != null
+                              ? '${up.filename} (failed)'
+                              : up.filename,
+                      isError: up.error != null,
+                      tooltip: up.uploading ? 'Cancel upload' : 'Remove attachment',
+                      onRemove: () => controller.removeStagedUpload(up),
                     ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 7),
             ],
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -136,7 +133,7 @@ class _ComposerDockState extends ConsumerState<ComposerDock> {
                   const SizedBox(width: 5),
                   _MiniToolChip(
                     icon: Icons.attach_file,
-                    label: 'Upload /tmp',
+                    label: 'Attach',
                     onTap: () => showUploadTmpPickerSheet(context, ref),
                   ),
                   const SizedBox(width: 8),
@@ -148,6 +145,7 @@ class _ComposerDockState extends ConsumerState<ComposerDock> {
                   const SizedBox(width: 5),
                   _MiniToolChip(
                     label: '${session?.model ?? 'Neon High'} ▾',
+                    primaryText: true,
                     onTap: () => showModeAndModelSheet(context, ref),
                   ),
                 ],
@@ -156,11 +154,11 @@ class _ComposerDockState extends ConsumerState<ComposerDock> {
             const SizedBox(height: 7),
             Container(
               decoration: BoxDecoration(
-                color: c.surfaceRaised,
+                color: c.surface,
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(color: c.borderStrong),
               ),
-              padding: const EdgeInsets.fromLTRB(12, 4, 6, 4),
+              padding: const EdgeInsets.fromLTRB(12, 5, 6, 5),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -169,26 +167,45 @@ class _ComposerDockState extends ConsumerState<ComposerDock> {
                       controller: _inputCtrl,
                       minLines: 1,
                       maxLines: 4,
+                      style: const TextStyle(fontSize: 13.5, height: 1.4),
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         hintText: 'Ask Antigravity on $hostName...',
+                        hintStyle: TextStyle(color: c.textMuted, fontSize: 13.5),
+                        filled: false,
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 5),
                         isDense: true,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    style: IconButton.styleFrom(
-                      backgroundColor: state.isStreaming ? c.danger : c.accent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      gradient: state.isStreaming ? null : c.accentGradient,
+                      color: state.isStreaming ? c.danger : null,
+                      borderRadius: BorderRadius.circular(11),
                     ),
-                    icon: Icon(state.isStreaming ? Icons.stop : Icons.arrow_upward, size: 19),
-                    onPressed: state.isStreaming
-                        ? () => controller.cancelTurn()
-                        : _submit,
+                    child: Material(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(11),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(11),
+                        onTap: state.isStreaming
+                            ? () => controller.cancelTurn()
+                            : _submit,
+                        child: Icon(
+                          state.isStreaming ? Icons.stop : Icons.arrow_upward,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -204,6 +221,7 @@ class _MiniToolChip extends StatelessWidget {
   final String label;
   final IconData? icon;
   final bool accent;
+  final bool primaryText;
   final VoidCallback onTap;
 
   const _MiniToolChip({
@@ -211,38 +229,104 @@ class _MiniToolChip extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.accent = false,
+    this.primaryText = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final fg = accent ? c.accent : (primaryText ? c.text : c.textSecondary);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: accent ? c.accentSoft : c.surfaceRaised,
+          color: accent ? c.accentSoft : c.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: accent ? c.accent.withValues(alpha: 0.35) : c.border),
+          border: Border.all(
+            color: accent ? c.accent.withValues(alpha: 0.25) : c.border,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 13, color: accent ? c.accent : c.textSecondary),
+              Icon(icon, size: 13, color: fg),
               const SizedBox(width: 4),
             ],
             Text(
               label,
               style: TextStyle(
-                color: accent ? c.accent : c.textSecondary,
+                color: fg,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AttachedChip extends StatelessWidget {
+  final Widget? leading;
+  final String label;
+  final bool isError;
+  final String tooltip;
+  final VoidCallback onRemove;
+
+  const _AttachedChip({
+    this.leading,
+    required this.label,
+    this.isError = false,
+    this.tooltip = 'Remove attachment',
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final bg = isError ? c.dangerSoft : c.accentSoft;
+    final fg = isError ? c.danger : c.accent;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (leading != null) ...[
+            leading!,
+            const SizedBox(width: 5),
+          ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: fg,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Tooltip(
+            message: tooltip,
+            child: InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(999),
+              child: Icon(Icons.close, size: 13, color: fg),
+            ),
+          ),
+        ],
       ),
     );
   }

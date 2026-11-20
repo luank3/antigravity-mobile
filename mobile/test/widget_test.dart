@@ -6,6 +6,7 @@ import 'package:agy_mobile/core/platform/android_runtime.dart';
 import 'package:agy_mobile/core/state/app_state.dart';
 import 'package:agy_mobile/core/theme/app_theme.dart';
 import 'package:agy_mobile/core/transport/mock_p2p_transport.dart';
+import 'package:agy_mobile/core/widgets/common_widgets.dart';
 import 'package:agy_mobile/features/chat/chat_items.dart';
 import 'package:agy_mobile/features/chat/markdown_body.dart';
 import 'package:agy_mobile/main.dart';
@@ -99,7 +100,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await uploadFuture;
     await tester.pumpAndSettle();
-    expect(find.text('sample.log (/tmp)'), findsOneWidget);
+    expect(find.text('sample.log'), findsOneWidget);
   });
 
   testWidgets('Handles real agy acp thought, tool_call upsert, and usage updates',
@@ -498,10 +499,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ALLOWED WORKSPACE ROOTS'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, '/srv/api'), findsOneWidget);
-    expect(find.widgetWithText(ChoiceChip, '/srv/web'), findsOneWidget);
+    expect(find.widgetWithText(AgyFilterChip, '/srv/api'), findsOneWidget);
+    expect(find.widgetWithText(AgyFilterChip, '/srv/web'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, '/srv/web'));
+    await tester.tap(find.widgetWithText(AgyFilterChip, '/srv/web'));
     await tester.pumpAndSettle();
 
     final cwdField = tester.widget<TextField>(

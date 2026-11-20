@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-11-20
+
+### Changed
+- **Chat Screen & Tool Call Polish**:
+  - Made shell tool call cards (`_TerminalToolCard`) collapsible with output hidden by default, clean status indicators, and expandable scrollable monospace output.
+  - Polished edit diff cards (`View full diff →` footer bar) and cleaned permission cards (`Permission Required`, removed `Approval Required · Tool Permission` and `cwd:` slop).
+  - Removed `/tmp` slop from chat empty state, composer toolbar (`Upload /tmp` → `Attach`), and attached upload chips (removed `(/tmp)` suffix).
+  - Redesigned composer toolbar (`_MiniToolChip`, `_AttachedChip`, gradient send button, clean input wrap) and `Mode & Model` bottom sheet (custom selectable mode pills and model list cards) to match the approved `Orbital Carbon` / `Studio Daylight` design.
+  - Replaced remaining `ActionChip` diff badge, `Latest` button, and `NewSessionSheet` workspace root `ChoiceChip`s with design-system components.
+
 ## [1.0.6] - 2026-11-20
 
 ### Fixed

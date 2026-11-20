@@ -191,13 +191,33 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
           if ((session?.diffs ?? 0) > 0)
             Padding(
               padding: const EdgeInsets.only(right: 10),
-              child: ActionChip(
-                label: Text('${session!.diffs} diffs', style: const TextStyle(fontSize: 11)),
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  controller.setNavTab(2);
-                  Navigator.of(context).pop();
-                },
+              child: Center(
+                child: Material(
+                  color: c.accentSoft,
+                  borderRadius: BorderRadius.circular(999),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () {
+                      controller.setNavTab(2);
+                      Navigator.of(context).pop();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: c.accent.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        '${session!.diffs} diffs',
+                        style: TextStyle(
+                          color: c.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -230,7 +250,7 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Text(
-                        'Session ready on ${host?.name ?? 'host'}.\nSend a prompt or tap Upload /tmp to stage files from Android.',
+                        'Session ready on ${host?.name ?? 'host'}.\nSend a prompt below to get started.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: c.textSecondary, fontSize: 13),
                       ),
@@ -264,10 +284,10 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
                         Positioned(
                           right: 14,
                           bottom: 14,
-                          child: FilledButton.tonalIcon(
+                          child: GradientPillButton(
+                            label: 'Latest',
+                            icon: Icons.arrow_downward,
                             onPressed: () => _jumpToBottom(animate: true),
-                            icon: const Icon(Icons.arrow_downward, size: 16),
-                            label: const Text('Latest', style: TextStyle(fontSize: 12)),
                           ),
                         ),
                     ],

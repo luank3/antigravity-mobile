@@ -147,13 +147,10 @@ class _NewSessionSheetState extends ConsumerState<_NewSessionSheet> {
                   spacing: 6,
                   runSpacing: 6,
                   children: roots.map((root) {
-                    return ChoiceChip(
-                      label: Text(
-                        root,
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5),
-                      ),
+                    return AgyFilterChip(
+                      label: root,
                       selected: _cwdCtrl.text.trim() == root,
-                      onSelected: (_) => setState(() => _cwdCtrl.text = root),
+                      onTap: () => setState(() => _cwdCtrl.text = root),
                     );
                   }).toList(),
                 ),

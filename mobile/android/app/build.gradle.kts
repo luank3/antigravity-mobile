@@ -30,9 +30,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        ndk {
-            abiFilters += "arm64-v8a"
-        }
+        // Target architectures handled by flutter target-platform or split-per-abi
     }
 
     signingConfigs {

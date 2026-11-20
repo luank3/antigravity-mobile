@@ -42,7 +42,9 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
     if (away != _showJumpLatest) {
       setState(() => _showJumpLatest = away);
     }
-    if (pos.maxScrollExtent > 0 && pos.pixels >= pos.maxScrollExtent - 160) {
+    if (pos.pixels > 40 &&
+        pos.maxScrollExtent > 120 &&
+        pos.pixels >= pos.maxScrollExtent - 80) {
       _maybeLoadOlderHistory();
     }
   }

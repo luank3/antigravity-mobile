@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2026-11-20
+
+### Fixed
+- **Prevent Auto-Cascading History Loads & Empty `session/load` Fallback**:
+  - Updated `ActiveChatScreen._onScroll` so older history auto-loading only triggers after the user actually scrolls up (`pixels > 40`, `maxScrollExtent > 120`, and `pixels >= maxScrollExtent - 80`) instead of cascading immediately on compact 15-message views.
+  - Added an in-flight guard in `AppController.openSession` to avoid duplicate concurrent `session/load` calls.
+  - Ensured `acp.Bridge.LoadOrResumeSession` always initializes `resMap` even if the underlying `session/load` result is `null`, guaranteeing the paginated `history` object is returned.
+
 ## [1.0.12] - 2026-11-20
 
 ### Fixed

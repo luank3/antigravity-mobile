@@ -555,16 +555,20 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 		}
 		page := items[start:]
 		var resMap map[string]any
-		if err := json.Unmarshal(rawRes, &resMap); err == nil && resMap != nil {
-			resMap["history"] = map[string]any{
-				"items":      page,
-				"total":      total,
-				"nextCursor": start,
-				"hasMore":    start > 0,
-			}
-			if encoded, err := json.Marshal(resMap); err == nil {
-				return encoded, nil
-			}
+		if len(rawRes) > 0 {
+			_ = json.Unmarshal(rawRes, &resMap)
+		}
+		if resMap == nil {
+			resMap = map[string]any{}
+		}
+		resMap["history"] = map[string]any{
+			"items":      page,
+			"total":      total,
+			"nextCursor": start,
+			"hasMore":    start > 0,
+		}
+		if encoded, err := json.Marshal(resMap); err == nil {
+			return encoded, nil
 		}
 	}
 	return rawRes, nil

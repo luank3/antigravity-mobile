@@ -1675,6 +1675,7 @@ class AppController extends StateNotifier<AppState> {
 
     final host = state.activeHost;
     if (host == null || host.isDemo || sess == null) return;
+    if (state.loadingSession && state.activeSessionId == sessionId) return;
     if (!forceReload && state.loadedRealSessions.contains(sessionId)) {
       unawaited(refreshWorkspaceData());
       return;

@@ -219,23 +219,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       value: state.keepAwake,
                       onChanged: (v) => controller.setPreference(keepAwake: v),
                     ),
-                    Divider(height: 1, color: c.border),
-                    ListTile(
-                      title: const Text('Send Test Alert', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      subtitle: Text('Verify Android notification permission & alert sound', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
-                      trailing: OutlinedButton(
-                        onPressed: () async {
-                          await controller.sendTestNotification();
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context)
-                            ..clearSnackBars()
-                            ..showSnackBar(
-                              const SnackBar(content: Text('Test notification sent')),
-                            );
-                        },
-                        child: const Text('Test', style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
                   ],
                 ),
               ),

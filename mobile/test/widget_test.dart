@@ -579,20 +579,13 @@ void main() {
     await uploadFuture;
     expect(container.read(appControllerProvider).stagedUploads, isEmpty);
 
-    // Return to Settings and tap Send Test Alert.
+    // Verify Send Test Alert button is removed from Settings, and controller method still works.
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Send Test Alert'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Test'));
-    await tester.pumpAndSettle();
-    expect(find.text('Test notification sent'), findsOneWidget);
+    expect(find.text('Send Test Alert'), findsNothing);
+    await controller.sendTestNotification();
     expect(spyRuntime.alerts, isNotEmpty);
     expect(spyRuntime.alerts.last.$1, 'Antigravity Test Alert');
   });

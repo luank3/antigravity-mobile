@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-11-20
+
+### Removed
+- **Removed Demo Setting in Production**: Completely hid and disabled the "Show Preview Demo Host" setting toggle in production release builds (`kReleaseMode`), and guaranteed clean initial state without mock hosts or sessions.
+- **Removed UI Subtitle Slop**:
+  - Removed `Zero-trust Ed25519 + SAS verification` under "Pair Remote Machine" in pair sheet.
+  - Removed `${state.hosts.length} Host(s)` under "Paired Machines" in hosts screen.
+  - Removed hardcoded mock repository path fallback (`~/dev/antigravity-mobile · main`) in workspace screen.
+
+### Changed
+- **De-Jargonized UI Titles & Subtitles**:
+  - Renamed `MOBILE NODE IDENTITY (go-libp2p)` to `DEVICE IDENTITY` and status badge to `Online`.
+  - Renamed `DCUtR Hole Punching` to `Direct P2P Hole Punching` and cleaned up NAT/relay explanation subtitles.
+  - Renamed `SHORT AUTHENTICATION STRING (SAS)` to `SECURITY VERIFICATION CODE`.
+  - Removed CLI argument flags `(--sandbox)` and daemon binary tags `(agy-relay)` from UI titles.
+  - Cleaned up file upload modal to user-facing copy without internal protocol multiaddrs (`/agy/blob/1.0.0`) or staging paths.
+
 ## [1.0.2] - 2026-11-20
 
 ### Fixed

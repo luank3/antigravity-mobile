@@ -79,8 +79,8 @@ class AppState {
     this.isDarkTheme = true,
     this.showDemoHost = kDebugMode,
     this.navTabIndex = 1,
-    this.activeHostId = 'demo-home-workstation',
-    this.activeSessionId = 'sess-nat-relay',
+    this.activeHostId = kDebugMode ? 'demo-home-workstation' : '',
+    this.activeSessionId = kDebugMode ? 'sess-nat-relay' : '',
     this.handoffBanner,
     this.handoffSuccess = false,
     this.isStreaming = false,
@@ -279,6 +279,20 @@ class AppController extends StateNotifier<AppState> {
   }
 
   static AppState _buildInitialState() {
+    if (!kDebugMode) {
+      return const AppState(
+        showDemoHost: false,
+        activeHostId: '',
+        activeSessionId: '',
+        hosts: [],
+        sessions: [],
+        messagesBySession: {},
+        workspaceChanges: [],
+        workspaceFiles: [],
+        workspaceArtifacts: [],
+        relays: [],
+      );
+    }
     const demoHostId = 'demo-home-workstation';
     const demoHost = PairedHost(
       id: demoHostId,
@@ -513,7 +527,7 @@ class AppController extends StateNotifier<AppState> {
       }
     } catch (_) {}
 
-    final showDemo = prefs?.getBool(_prefsShowDemoKey) ?? kDebugMode;
+    final showDemo = kDebugMode && (prefs?.getBool(_prefsShowDemoKey) ?? true);
     final mergedHosts = <PairedHost>[
       ...loadedHosts,
       if (showDemo) ...state.hosts.where((h) => h.isDemo),
@@ -1324,6 +1338,7 @@ class AppController extends StateNotifier<AppState> {
   }
 
   void toggleDemoHost(bool show) {
+    if (!kDebugMode) return;
     if (show == state.showDemoHost) return;
     SharedPreferences.getInstance().then((p) => p.setBool(_prefsShowDemoKey, show)).catchError((_) => false);
     if (show) {

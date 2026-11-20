@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,7 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'MOBILE NODE IDENTITY (go-libp2p)',
+                          'DEVICE IDENTITY',
                           style: TextStyle(
                             color: c.textMuted,
                             fontSize: 10.5,
@@ -74,7 +75,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ),
                         StatusBadge(
-                          label: state.nodeError == null ? 'Ed25519 Ready' : 'Init Error',
+                          label: state.nodeError == null ? 'Online' : 'Init Error',
                           fg: state.nodeError == null ? c.success : c.danger,
                           bg: state.nodeError == null ? c.successSoft : c.dangerSoft,
                         ),
@@ -122,7 +123,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              _SectionTitle('Appearance & Preview'),
+              _SectionTitle(kDebugMode ? 'Appearance & Preview' : 'Appearance'),
               const SizedBox(height: 6),
               SurfaceCard(
                 padding: EdgeInsets.zero,
@@ -133,13 +134,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       value: state.isDarkTheme,
                       onChanged: (_) => controller.toggleTheme(),
                     ),
-                    Divider(height: 1, color: c.border),
-                    SwitchListTile(
-                      title: const Text('Show Preview Demo Host', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      subtitle: Text('Includes simulated host alongside paired machines', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
-                      value: state.showDemoHost,
-                      onChanged: controller.toggleDemoHost,
-                    ),
+                    if (kDebugMode) ...[
+                      Divider(height: 1, color: c.border),
+                      SwitchListTile(
+                        title: const Text('Show Preview Demo Host', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        subtitle: Text('Includes simulated host alongside paired machines', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
+                        value: state.showDemoHost,
+                        onChanged: controller.toggleDemoHost,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -152,21 +155,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   children: [
                     SwitchListTile(
                       title: const Text('Prefer LAN mDNS', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      subtitle: Text('Direct <5ms QUIC when on same Wi-Fi', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
+                      subtitle: Text('Connect directly when on the same Wi-Fi network', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
                       value: state.preferMdns,
                       onChanged: (v) => controller.setPreference(preferMdns: v),
                     ),
                     Divider(height: 1, color: c.border),
                     SwitchListTile(
-                      title: const Text('DCUtR Hole Punching', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      subtitle: Text('Auto-upgrade relayed links to direct P2P', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
+                      title: const Text('Direct P2P Hole Punching', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                      subtitle: Text('Upgrade relayed links to direct peer-to-peer', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
                       value: state.enableDcutr,
                       onChanged: (v) => controller.setPreference(enableDcutr: v),
                     ),
                     Divider(height: 1, color: c.border),
                     SwitchListTile(
                       title: const Text('AutoRelay Fallback', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                      subtitle: Text('Route via Circuit Relay v2 on symmetric NAT', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
+                      subtitle: Text('Route via relay servers when behind firewalls', style: TextStyle(color: c.textSecondary, fontSize: 11.5)),
                       value: state.enableAutoRelay,
                       onChanged: (v) => controller.setPreference(enableAutoRelay: v),
                     ),
@@ -239,7 +242,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _SectionTitle('Self-Hosted Relays (agy-relay)')),
+                  Expanded(child: _SectionTitle('Self-Hosted Relays')),
                   if (state.relays.isNotEmpty)
                     TextButton(
                       onPressed: state.probingRelays ? null : controller.probeRelays,

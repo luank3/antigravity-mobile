@@ -22,20 +22,10 @@ class HostsScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
           child: Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Paired Machines',
-                      style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${state.hosts.length} Host(s)',
-                      style: TextStyle(color: c.textSecondary, fontSize: 12),
-                    ),
-                  ],
+              const Expanded(
+                child: Text(
+                  'Paired Machines',
+                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
                 ),
               ),
               FilledButton.icon(

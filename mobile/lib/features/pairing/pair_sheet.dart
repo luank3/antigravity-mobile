@@ -213,19 +213,10 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Pair Remote Machine',
-                          style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
-                        ),
-                        Text(
-                          'Zero-trust Ed25519 + SAS verification',
-                          style: TextStyle(color: c.textSecondary, fontSize: 12),
-                        ),
-                      ],
+                  const Expanded(
+                    child: Text(
+                      'Pair Remote Machine',
+                      style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w700),
                     ),
                   ),
                   IconButton(
@@ -502,7 +493,7 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
       child: Column(
         children: [
           Text(
-            'SHORT AUTHENTICATION STRING (SAS)',
+            'SECURITY VERIFICATION CODE',
             style: TextStyle(
               color: c.textMuted,
               fontSize: 10.5,

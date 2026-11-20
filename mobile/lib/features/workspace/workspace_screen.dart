@@ -39,15 +39,16 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                       'Workspace',
                       style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
                     ),
-                    Text(
-                      '${session?.cwd ?? '~/dev/antigravity-mobile'} · ${session?.branch ?? 'main'}',
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        color: c.textSecondary,
-                        fontSize: 11.5,
+                    if (session != null)
+                      Text(
+                        '${session.cwd} · ${session.branch}',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          color: c.textSecondary,
+                          fontSize: 11.5,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
               ),

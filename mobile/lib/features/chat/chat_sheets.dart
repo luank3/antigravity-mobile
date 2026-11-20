@@ -197,17 +197,17 @@ Future<void> showUploadTmpPickerSheet(BuildContext context, WidgetRef ref) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Upload Device File to Remote /tmp', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
+            const Text('Upload File to Host', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
-              'Files stream via Noise XX /agy/blob/1.0.0 into /tmp/agyd-uploads/<session>/ and are attached to this prompt.',
+              'Files are uploaded to the remote host and attached to this session.',
               style: TextStyle(color: c.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 12),
             ListTile(
               leading: Icon(Icons.insert_drive_file_outlined, color: c.accent),
-              title: const Text('Pick Any File from Device'),
-              subtitle: const Text('Logs, JSON, source files, PDFs, archives'),
+              title: const Text('Pick File from Device'),
+              subtitle: const Text('Logs, text, JSON, source files, PDFs, archives'),
               onTap: () async {
                 Navigator.of(ctx).pop();
                 final file = await FilePicker.pickFile();
@@ -222,7 +222,7 @@ Future<void> showUploadTmpPickerSheet(BuildContext context, WidgetRef ref) {
             ListTile(
               leading: Icon(Icons.photo_library_outlined, color: c.accentIndigo),
               title: const Text('Pick Photo or Screenshot'),
-              subtitle: const Text('Sent as ACP image block + staged in /tmp'),
+              subtitle: const Text('Attach photo or screenshot to session'),
               onTap: () async {
                 Navigator.of(ctx).pop();
                 final img = await ImagePicker().pickImage(source: ImageSource.gallery);

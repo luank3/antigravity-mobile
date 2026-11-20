@@ -219,7 +219,7 @@ class _NewSessionSheetState extends ConsumerState<_NewSessionSheet> {
               const SizedBox(height: 10),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Terminal Sandbox (--sandbox)', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                title: const Text('Terminal Sandbox', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
                 subtitle: Text('Restrict shell commands to workspace', style: TextStyle(color: c.textSecondary, fontSize: 12)),
                 value: _sandbox,
                 onChanged: (v) => setState(() => _sandbox = v),

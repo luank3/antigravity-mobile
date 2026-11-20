@@ -519,6 +519,23 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 		params["mcpServers"] = []any{}
 	}
 
+	if method == "session/load" && historyLimit > 0 && sid != "" {
+		if items, ok := loadTranscriptHistory(sid); ok && len(items) > 0 {
+			if rawRes, err := b.CallWithAuthRetry(ctx, "session/resume", params); err == nil {
+				b.histMu.Lock()
+				b.historyCache[sid] = items
+				b.histMu.Unlock()
+				encoded, pageLen, encErr := buildPaginatedHistoryResult(rawRes, items, historyLimit)
+				if encErr == nil {
+					log.Printf("[acp] session/resume+transcript sid=%s limit=%d items=%d page=%d", sid, historyLimit, len(items), pageLen)
+					return encoded, nil
+				}
+			} else {
+				log.Printf("[acp] session/resume fallback to session/load sid=%s err=%v", sid, err)
+			}
+		}
+	}
+
 	var myCollector *replayCollector
 	if historyLimit > 0 && sid != "" {
 		myCollector = &replayCollector{items: make([]json.RawMessage, 0, 64)}
@@ -549,33 +566,38 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 		b.historyCache[sid] = items
 		b.histMu.Unlock()
 
-		total := len(items)
-		start := total - historyLimit
-		if start < 0 {
-			start = 0
-		}
-		page := items[start:]
-		log.Printf("[acp] %s sid=%s limit=%d collected=%d coalesced=%d page=%d", method, sid, historyLimit, len(collected), total, len(page))
-		var resMap map[string]any
-		if len(rawRes) > 0 {
-			_ = json.Unmarshal(rawRes, &resMap)
-		}
-		if resMap == nil {
-			resMap = map[string]any{}
-		}
-		resMap["history"] = map[string]any{
-			"items":      page,
-			"total":      total,
-			"nextCursor": start,
-			"hasMore":    start > 0,
-		}
-		encoded, encErr := json.Marshal(resMap)
+		encoded, pageLen, encErr := buildPaginatedHistoryResult(rawRes, items, historyLimit)
+		log.Printf("[acp] %s sid=%s limit=%d collected=%d coalesced=%d page=%d", method, sid, historyLimit, len(collected), len(items), pageLen)
 		if encErr == nil {
 			return encoded, nil
 		}
 		log.Printf("[acp] %s sid=%s marshal history error: %v", method, sid, encErr)
 	}
 	return rawRes, nil
+}
+
+func buildPaginatedHistoryResult(rawRes json.RawMessage, items []json.RawMessage, historyLimit int) (json.RawMessage, int, error) {
+	total := len(items)
+	start := total - historyLimit
+	if start < 0 {
+		start = 0
+	}
+	page := items[start:]
+	var resMap map[string]any
+	if len(rawRes) > 0 {
+		_ = json.Unmarshal(rawRes, &resMap)
+	}
+	if resMap == nil {
+		resMap = map[string]any{}
+	}
+	resMap["history"] = map[string]any{
+		"items":      page,
+		"total":      total,
+		"nextCursor": start,
+		"hasMore":    start > 0,
+	}
+	encoded, err := json.Marshal(resMap)
+	return encoded, len(page), err
 }
 
 // GetSessionHistory returns a slice of cached coalesced history items before `before`.

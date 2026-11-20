@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2026-11-20
+
+### Changed
+- **Release Packaging (Linux-only `.tar.gz`)**:
+  - Updated `.github/workflows/release-apk.yml` to build `agyd` and `agy-relay` for Linux (`linux/amd64`, `linux/arm64`) only and package them as `.tar.gz` archives instead of raw ~20+ MB binaries.
+
+### Fixed
+- **Fast Paginated Session Open via `session/resume` + Transcript Tail**:
+  - Updated `acp.Bridge.LoadOrResumeSession` to read local session transcripts (`transcript_full.jsonl` / `transcript.jsonl`) and invoke `session/resume` instead of `session/load` when `historyLimit > 0` is requested, eliminating multi-second full-history replays on long sessions while returning only the latest 15 coalesced items and serving earlier pages via `session/history`.
+
 ## [1.0.14] - 2026-11-20
 
 ### Fixed

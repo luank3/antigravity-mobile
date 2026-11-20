@@ -34,23 +34,18 @@ jobs:
           TARGETS=(
             "linux/amd64"
             "linux/arm64"
-            "darwin/amd64"
-            "darwin/arm64"
-            "windows/amd64"
-            "windows/arm64"
           )
           for target in "${TARGETS[@]}"; do
             os="${target%%/*}"
             arch="${target##*/}"
-            ext=""
-            if [ "$os" = "windows" ]; then
-              ext=".exe"
-            fi
             echo "Building agyd and agy-relay for $os/$arch..."
             GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-              -o "bin/agyd-${os}-${arch}${ext}" ./cmd/agyd
+              -o "bin/agyd-${os}-${arch}" ./cmd/agyd
             GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-              -o "bin/agy-relay-${os}-${arch}${ext}" ./cmd/agy-relay
+              -o "bin/agy-relay-${os}-${arch}" ./cmd/agy-relay
+            tar -czf "bin/agyd-${os}-${arch}.tar.gz" -C bin "agyd-${os}-${arch}"
+            tar -czf "bin/agy-relay-${os}-${arch}.tar.gz" -C bin "agy-relay-${os}-${arch}"
+            rm -f "bin/agyd-${os}-${arch}" "bin/agy-relay-${os}-${arch}"
           done
           ls -lh bin/
 

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -554,6 +555,7 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 			start = 0
 		}
 		page := items[start:]
+		log.Printf("[acp] %s sid=%s limit=%d collected=%d coalesced=%d page=%d", method, sid, historyLimit, len(collected), total, len(page))
 		var resMap map[string]any
 		if len(rawRes) > 0 {
 			_ = json.Unmarshal(rawRes, &resMap)
@@ -567,9 +569,11 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 			"nextCursor": start,
 			"hasMore":    start > 0,
 		}
-		if encoded, err := json.Marshal(resMap); err == nil {
+		encoded, encErr := json.Marshal(resMap)
+		if encErr == nil {
 			return encoded, nil
 		}
+		log.Printf("[acp] %s sid=%s marshal history error: %v", method, sid, encErr)
 	}
 	return rawRes, nil
 }
@@ -696,7 +700,9 @@ func coalesceHistoryUpdates(raw []json.RawMessage) []json.RawMessage {
 
 		default:
 			flushPending()
-			out = append(out, item)
+			if json.Valid(item) {
+				out = append(out, item)
+			}
 		}
 	}
 	flushPending()

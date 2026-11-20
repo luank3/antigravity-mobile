@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2026-11-20
+
+### Fixed
+- **Client-Side History Pagination Fallback & JSON Validation**:
+  - Added `_localHistoryBuffer` fallback in `AppController` so even if a host daemon does not return a `history` object in `session/load`, the client still slices and renders only the last 15 messages initially and pages earlier messages on scroll up.
+  - Added `json.Valid` filtering in `coalesceHistoryUpdates` and diagnostic logging in `acp.Bridge.LoadOrResumeSession` so malformed items can never silently drop the `history` response.
+
 ## [1.0.13] - 2026-11-20
 
 ### Fixed

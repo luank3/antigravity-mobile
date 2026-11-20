@@ -278,6 +278,7 @@ class AppController extends StateNotifier<AppState> {
   final AndroidRuntime androidRuntime;
   final Map<String, String> _pendingUserEchoes = {};
   final Map<String, DateTime> _thinkingStartTimes = {};
+  final Map<String, List<ChatMessage>> _localHistoryBuffer = {};
   final Set<String> _subscribedPeers = {};
   final Set<String> _cancelledUploadPaths = {};
   StreamSubscription<BridgeEvent>? _eventSub;
@@ -1719,6 +1720,7 @@ class AppController extends StateNotifier<AppState> {
         var nextHasMore = state.historyHasMore;
         final historyObj = res['history'];
         if (historyObj is Map<String, dynamic>) {
+          _localHistoryBuffer.remove(sessionId);
           final rawItems = historyObj['items'] as List? ?? const [];
           final cursor = (historyObj['nextCursor'] as num?)?.toInt() ?? 0;
           final hasMore = historyObj['hasMore'] == true;
@@ -1726,6 +1728,15 @@ class AppController extends StateNotifier<AppState> {
           nextMessages = {...state.messagesBySession, sessionId: parsed};
           nextCursors = {...state.historyNextCursor, sessionId: cursor};
           nextHasMore = {...state.historyHasMore, sessionId: hasMore};
+        } else {
+          final currentMsgs = state.messagesBySession[sessionId] ?? const <ChatMessage>[];
+          if (currentMsgs.length > 15) {
+            final cut = currentMsgs.length - 15;
+            _localHistoryBuffer[sessionId] = currentMsgs.sublist(0, cut);
+            nextMessages = {...state.messagesBySession, sessionId: currentMsgs.sublist(cut)};
+            nextCursors = {...state.historyNextCursor, sessionId: cut};
+            nextHasMore = {...state.historyHasMore, sessionId: true};
+          }
         }
 
         state = state.copyWith(
@@ -1774,6 +1785,25 @@ class AppController extends StateNotifier<AppState> {
     if (state.loadingOlderHistory || state.historyHasMore[sessionId] != true) {
       return false;
     }
+
+    final localBuf = _localHistoryBuffer[sessionId];
+    if (localBuf != null && localBuf.isNotEmpty) {
+      final start = (localBuf.length - 15).clamp(0, localBuf.length);
+      final older = localBuf.sublist(start);
+      final remaining = localBuf.sublist(0, start);
+      _localHistoryBuffer[sessionId] = remaining;
+      final existing = state.messagesBySession[sessionId] ?? const <ChatMessage>[];
+      state = state.copyWith(
+        messagesBySession: {
+          ...state.messagesBySession,
+          sessionId: [...older, ...existing],
+        },
+        historyNextCursor: {...state.historyNextCursor, sessionId: remaining.length},
+        historyHasMore: {...state.historyHasMore, sessionId: remaining.isNotEmpty},
+      );
+      return older.isNotEmpty;
+    }
+
     final before = state.historyNextCursor[sessionId] ?? 0;
     if (before <= 0) return false;
 

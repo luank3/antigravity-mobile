@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-11-20
+
+### Fixed
+- **Compact `agyd pair` Terminal QR Code**:
+  - Filtered out loopback (`127.0.0.1`, `::1`), unspecified (`0.0.0.0`, `::`), and link-local IPv6 (`fe80:`) addresses from `DirectAddrs()`.
+  - Added `CompactPairURI` (capped to 2 IPv4-preferred direct addresses + 1 relay address) and switched `RenderTerminalQR` to `qrcode.Low` with `DisableBorder = true` so the QR code fits comfortably inside standard `80x24` terminals.
+
+### Changed
+- **Aligned Mobile UI with Approved Design (`Orbital Carbon` / `Studio Daylight`)**:
+  - Replaced Material 3 default `FilledButton` / `FloatingActionButton.extended` with `GradientPillButton` (`999px` pill, `#38BDF8` → `#6366F1` gradient, cyan glow shadow) and `GradientBlockButton` (`12px` radius gradient buttons).
+  - Replaced Material 3 `ChoiceChip` filters (`All`, `Active`, `Needs Approval`) with compact `AgyFilterChip` pills (`11.5px`, no checkmarks, accent-soft active state).
+  - Replaced Material 3 `SegmentedButton` with `AgySegmentedControl` (`surfaceRaised` track, `surface` active tab, no checkmarks).
+  - Replaced `ActionChip` host switcher with a compact pill switcher matching `.host-switcher-pill`.
+  - Replaced Material 3 `NavigationBar` with a `58px` bottom navigation bar (`navBg` + top border, no indicator pill blob, amber pending-approval badge).
+
 ## [1.0.5] - 2026-11-20
 
 ### Removed

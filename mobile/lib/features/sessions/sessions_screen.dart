@@ -53,15 +53,18 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       backgroundColor: c.bg,
       floatingActionButton: activeHost == null
           ? null
-          : FloatingActionButton.extended(
+          : GradientPillButton(
+              label: 'New Session',
+              icon: Icons.add,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              fontSize: 13,
+              shadowOpacity: 0.34,
               onPressed: () async {
                 final created = await showNewSessionSheet(context);
                 if (created && context.mounted) {
                   _openChatScreen(context);
                 }
               },
-              icon: const Icon(Icons.add),
-              label: const Text('New Session'),
             ),
       body: Column(
         children: [
@@ -69,26 +72,44 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             child: Row(
               children: [
-                ActionChip(
-                  avatar: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: activeHost?.diagnostics.connected == true ? c.success : c.textMuted,
-                      shape: BoxShape.circle,
+                Material(
+                  color: c.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: state.hosts.length > 1
+                        ? () {
+                            final idx = state.hosts.indexWhere((h) => h.id == state.activeHostId);
+                            final next = state.hosts[(idx + 1) % state.hosts.length];
+                            unawaited(controller.selectHost(next.id));
+                          }
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: c.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: activeHost?.diagnostics.connected == true ? c.success : c.textMuted,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            activeHost?.name ?? 'Select Host',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  label: Text(
-                    activeHost?.name ?? 'Select Host',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
-                  ),
-                  onPressed: state.hosts.length > 1
-                      ? () {
-                          final idx = state.hosts.indexWhere((h) => h.id == state.activeHostId);
-                          final next = state.hosts[(idx + 1) % state.hosts.length];
-                          unawaited(controller.selectHost(next.id));
-                        }
-                      : null,
                 ),
                 const Spacer(),
                 if (activeHost != null)
@@ -126,12 +147,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                       ('active', 'Active'),
                       ('approval', 'Needs Approval'),
                     ]) ...[
-                      ChoiceChip(
-                        label: Text(entry.$2, style: const TextStyle(fontSize: 12)),
+                      AgyFilterChip(
+                        label: entry.$2,
                         selected: _filter == entry.$1,
-                        onSelected: (_) => setState(() => _filter = entry.$1),
+                        onTap: () => setState(() => _filter = entry.$1),
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 6),
                     ],
                   ],
                 ),
@@ -167,10 +188,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                                           style: TextStyle(color: c.textSecondary, fontSize: 13),
                                         ),
                                         const SizedBox(height: 14),
-                                        FilledButton.icon(
+                                        GradientPillButton(
+                                          label: 'Pair Machine',
+                                          icon: Icons.add,
                                           onPressed: () => showPairMachineSheet(context),
-                                          icon: const Icon(Icons.add, size: 18),
-                                          label: const Text('Pair Machine'),
                                         ),
                                       ],
                                     ),

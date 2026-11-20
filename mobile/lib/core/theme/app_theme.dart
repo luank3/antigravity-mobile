@@ -20,6 +20,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color danger;
   final Color dangerSoft;
   final Color codeBg;
+  final Color navBg;
 
   const AppColors({
     required this.bg,
@@ -40,7 +41,14 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.danger,
     required this.dangerSoft,
     required this.codeBg,
+    required this.navBg,
   });
+
+  LinearGradient get accentGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [accent, accentIndigo],
+      );
 
   static const dark = AppColors(
     bg: Color(0xFF090B10),
@@ -61,6 +69,7 @@ class AppColors extends ThemeExtension<AppColors> {
     danger: Color(0xFFEF4444),
     dangerSoft: Color(0x26EF4444),
     codeBg: Color(0xFF06080D),
+    navBg: Color(0xEB0D1119),
   );
 
   static const light = AppColors(
@@ -82,6 +91,7 @@ class AppColors extends ThemeExtension<AppColors> {
     danger: Color(0xFFDC2626),
     dangerSoft: Color(0x1FDC2626),
     codeBg: Color(0xFF0F172A),
+    navBg: Color(0xF0FFFFFF),
   );
 
   @override
@@ -104,6 +114,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? danger,
     Color? dangerSoft,
     Color? codeBg,
+    Color? navBg,
   }) {
     return AppColors(
       bg: bg ?? this.bg,
@@ -124,6 +135,7 @@ class AppColors extends ThemeExtension<AppColors> {
       danger: danger ?? this.danger,
       dangerSoft: dangerSoft ?? this.dangerSoft,
       codeBg: codeBg ?? this.codeBg,
+      navBg: navBg ?? this.navBg,
     );
   }
 
@@ -149,6 +161,7 @@ class AppColors extends ThemeExtension<AppColors> {
       danger: Color.lerp(danger, other.danger, t)!,
       dangerSoft: Color.lerp(dangerSoft, other.dangerSoft, t)!,
       codeBg: Color.lerp(codeBg, other.codeBg, t)!,
+      navBg: Color.lerp(navBg, other.navBg, t)!,
     );
   }
 }
@@ -182,6 +195,41 @@ class AppTheme {
         foregroundColor: c.text,
         elevation: 0,
         scrolledUnderElevation: 0,
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: c.text,
+          backgroundColor: c.surfaceRaised,
+          side: BorderSide(color: c.borderStrong),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: c.accent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: c.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: c.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: c.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: c.accent),
+        ),
       ),
       dividerColor: c.border,
       extensions: [c],

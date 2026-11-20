@@ -295,11 +295,56 @@ func ParsePairURI(raw string) (*ParsedPairURI, error) {
 	}, nil
 }
 
+// CompactPairURI trims excessive direct/relay addresses from an agy://pair URI
+// so terminal QR codes stay compact enough for standard 80x24 terminals.
+func CompactPairURI(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Scheme != "agy" || u.Host != "pair" {
+		return raw
+	}
+	q := u.Query()
+	out := url.Values{}
+	if p := q.Get("peer"); p != "" {
+		out.Set("peer", p)
+	}
+	if n := q.Get("name"); n != "" {
+		out.Set("name", n)
+	}
+	if t := q.Get("token"); t != "" {
+		out.Set("token", t)
+	}
+	if relays := q["relay"]; len(relays) > 0 && relays[0] != "" {
+		out.Add("relay", relays[0])
+	}
+	// Prefer IPv4 addresses and keep at most 2 direct addresses for QR compactness.
+	var ipv4, other []string
+	for _, a := range q["addr"] {
+		if a == "" {
+			continue
+		}
+		if strings.HasPrefix(a, "/ip4/") {
+			ipv4 = append(ipv4, a)
+		} else {
+			other = append(other, a)
+		}
+	}
+	chosen := append(ipv4, other...)
+	if len(chosen) > 2 {
+		chosen = chosen[:2]
+	}
+	for _, a := range chosen {
+		out.Add("addr", a)
+	}
+	return "agy://pair?" + out.Encode()
+}
+
 // RenderTerminalQR builds an ASCII QR code suitable for terminal display.
 func RenderTerminalQR(uri string) (string, error) {
-	qr, err := qrcode.New(uri, qrcode.Medium)
+	compact := CompactPairURI(uri)
+	qr, err := qrcode.New(compact, qrcode.Low)
 	if err != nil {
 		return "", err
 	}
+	qr.DisableBorder = true
 	return qr.ToSmallString(false), nil
 }

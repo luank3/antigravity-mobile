@@ -74,14 +74,14 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
         Divider(height: 1, color: c.border),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-          child: SegmentedButton<int>(
-            segments: [
-              ButtonSegment(value: 0, label: Text('Changes (${state.workspaceChanges.length})')),
-              const ButtonSegment(value: 1, label: Text('Files')),
-              ButtonSegment(value: 2, label: Text('Artifacts (${state.workspaceArtifacts.length})')),
+          child: AgySegmentedControl<int>(
+            items: [
+              (0, 'Changes (${state.workspaceChanges.length})'),
+              (1, 'Files'),
+              (2, 'Artifacts (${state.workspaceArtifacts.length})'),
             ],
-            selected: {_tab},
-            onSelectionChanged: (s) => setState(() => _tab = s.first),
+            selected: _tab,
+            onChanged: (next) => setState(() => _tab = next),
           ),
         ),
         Expanded(

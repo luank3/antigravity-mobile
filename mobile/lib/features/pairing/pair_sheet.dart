@@ -9,6 +9,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/models/models.dart';
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/common_widgets.dart';
 
 Future<void> showPairMachineSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -246,15 +247,14 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
               ],
               const SizedBox(height: 12),
               if (_step == 1) ...[
-                SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(value: 0, label: Text('Scan QR')),
-                    ButtonSegment(value: 1, label: Text('Nearby LAN')),
-                    ButtonSegment(value: 2, label: Text('Paste URI')),
+                AgySegmentedControl<int>(
+                  items: const [
+                    (0, 'Scan QR'),
+                    (1, 'Nearby LAN'),
+                    (2, 'Paste URI'),
                   ],
-                  selected: {_tabIndex},
-                  onSelectionChanged: (s) {
-                    final next = s.first;
+                  selected: _tabIndex,
+                  onChanged: (next) {
                     setState(() => _tabIndex = next);
                     if (next == 1) unawaited(_scanLan());
                   },
@@ -483,9 +483,9 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
           ),
         ),
         const SizedBox(height: 12),
-        FilledButton(
+        GradientBlockButton(
           onPressed: _busy ? null : () => _startPair(uri: _uriCtrl.text),
-          child: Text(_busy ? 'Dialing via libp2p...' : 'Dial Peer & Start Handshake'),
+          label: _busy ? 'Dialing via libp2p...' : 'Dial Peer & Start Handshake',
         ),
       ],
     );
@@ -541,9 +541,9 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
               const SizedBox(width: 10),
               Expanded(
                 flex: 2,
-                child: FilledButton(
+                child: GradientBlockButton(
                   onPressed: _busy ? null : () => _confirmSas(true),
-                  child: Text(_busy ? 'Confirming...' : 'Confirm & Trust Host'),
+                  label: _busy ? 'Confirming...' : 'Confirm & Trust Host',
                 ),
               ),
             ],
@@ -574,12 +574,9 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
           style: TextStyle(color: c.textSecondary, fontSize: 12.5),
         ),
         const SizedBox(height: 18),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Done'),
-          ),
+        GradientBlockButton(
+          onPressed: () => Navigator.of(context).pop(),
+          label: 'Done',
         ),
       ],
     );

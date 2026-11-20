@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/common_widgets.dart';
 
 Future<bool> showNewSessionSheet(BuildContext context) async {
   final created = await showModalBottomSheet<bool>(
@@ -225,7 +226,7 @@ class _NewSessionSheetState extends ConsumerState<_NewSessionSheet> {
                 onChanged: (v) => setState(() => _sandbox = v),
               ),
               const SizedBox(height: 12),
-              FilledButton(
+              GradientBlockButton(
                 onPressed: (_creating || host == null)
                     ? null
                     : () async {
@@ -250,11 +251,9 @@ class _NewSessionSheetState extends ConsumerState<_NewSessionSheet> {
                           );
                         }
                       },
-                child: Text(
-                  host == null
-                      ? 'No Host Paired'
-                      : (_creating ? 'Starting ACP session...' : 'Create & Open Session'),
-                ),
+                label: host == null
+                    ? 'No Host Paired'
+                    : (_creating ? 'Starting ACP session...' : 'Create & Open Session'),
               ),
             ],
           ),

@@ -28,10 +28,10 @@ class HostsScreen extends ConsumerWidget {
                   style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
                 ),
               ),
-              FilledButton.icon(
+              GradientPillButton(
+                label: 'Pair',
+                icon: Icons.add,
                 onPressed: () => showPairMachineSheet(context),
-                icon: const Icon(Icons.add, size: 17),
-                label: const Text('Pair'),
               ),
             ],
           ),

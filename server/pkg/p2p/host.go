@@ -237,7 +237,12 @@ func (m *ManagedHost) DirectAddrs() []string {
 	var out []string
 	for _, a := range m.Host.Addrs() {
 		s := a.String()
-		if strings.Contains(s, "/p2p-circuit") {
+		if strings.Contains(s, "/p2p-circuit") ||
+			strings.HasPrefix(s, "/ip4/127.") ||
+			strings.HasPrefix(s, "/ip4/0.0.0.0/") ||
+			strings.HasPrefix(s, "/ip6/::1/") ||
+			strings.HasPrefix(s, "/ip6/::/") ||
+			strings.HasPrefix(s, "/ip6/fe80:") {
 			continue
 		}
 		out = append(out, fmt.Sprintf("%s/p2p/%s", s, self))

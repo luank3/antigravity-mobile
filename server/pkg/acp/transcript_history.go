@@ -93,8 +93,9 @@ func parseTranscriptHistoryFile(path string) ([]json.RawMessage, bool) {
 				m := map[string]any{
 					"sessionUpdate": "tool_call",
 					"toolCallId":    fmt.Sprintf("hist-tc-%d", tcSeq),
+					"name":          tc.Name,
 					"title":         tc.Name,
-					"kind":          tc.Name,
+					"kind":          mapToolKind(tc.Name),
 					"status":        "completed",
 					"rawInput":      unwrapToolArgs(tc.Args),
 				}
@@ -114,7 +115,7 @@ func parseTranscriptHistoryFile(path string) ([]json.RawMessage, bool) {
 		case "GENERIC":
 			if lastToolIdx >= 0 && entry.Content != "" {
 				if m, ok := tcMaps[lastToolIdx]; ok {
-					m["rawOutput"] = entry.Content
+					m["rawOutput"] = map[string]any{"output": entry.Content}
 					if b, err := json.Marshal(m); err == nil {
 						raw[lastToolIdx] = json.RawMessage(b)
 					}
@@ -160,6 +161,19 @@ func stripUserRequestTags(s string) string {
 		return strings.TrimSpace(inner)
 	}
 	return s
+}
+
+func mapToolKind(name string) string {
+	switch name {
+	case "run_command":
+		return "execute"
+	case "edit_file", "write_file":
+		return "edit"
+	case "read_file":
+		return "read"
+	default:
+		return name
+	}
 }
 
 func unwrapToolArgs(args map[string]any) map[string]any {

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2026-11-20
+
+### Fixed
+- **Tool Call `rawOutput` Type Compatibility**:
+  - Updated `transcript_history.go` to emit `rawOutput` as `{"output": ...}` (a JSON object) and map tool `kind` (`execute`, `edit`, `read`) and `name` properly, fixing `type 'String' is not a subtype of type 'Map<String, dynamic>?'` when loading session history.
+  - Hardened `AppController._buildToolCallMessage` in `app_state.dart` to accept both `Map<String, dynamic>` and `String` values for `rawOutput`.
+
 ## [1.0.15] - 2026-11-20
 
 ### Changed

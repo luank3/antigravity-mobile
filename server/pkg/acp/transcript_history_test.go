@@ -39,7 +39,8 @@ func TestParseTranscriptHistoryFile(t *testing.T) {
 	if usr["content"].(map[string]any)["text"] != "Hello agent" {
 		t.Fatalf("expected stripped user text, got %v", usr["content"])
 	}
-	if tc["sessionUpdate"] != "tool_call" || tc["title"] != "run_command" || tc["rawOutput"] != "file1\nfile2" {
+	rawOut, ok := tc["rawOutput"].(map[string]any)
+	if tc["sessionUpdate"] != "tool_call" || tc["title"] != "run_command" || tc["kind"] != "execute" || !ok || rawOut["output"] != "file1\nfile2" {
 		t.Fatalf("unexpected tool_call item: %v", tc)
 	}
 	rawIn := tc["rawInput"].(map[string]any)

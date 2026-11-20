@@ -1078,8 +1078,15 @@ class AppController extends StateNotifier<AppState> {
     final toolKind = (upd['kind'] ?? 'other').toString();
     final status = (upd['status'] ?? 'completed').toString();
     final title = (upd['title'] ?? '').toString();
-    final rawInput = upd['rawInput'] as Map<String, dynamic>? ?? const {};
-    final rawOutput = upd['rawOutput'] as Map<String, dynamic>? ?? const {};
+    final rawInput = upd['rawInput'] is Map<String, dynamic>
+        ? upd['rawInput'] as Map<String, dynamic>
+        : const <String, dynamic>{};
+    final rawOutputVal = upd['rawOutput'];
+    final rawOutput = rawOutputVal is Map<String, dynamic>
+        ? rawOutputVal
+        : (rawOutputVal is String
+            ? <String, dynamic>{'output': rawOutputVal}
+            : const <String, dynamic>{});
     final locations = upd['locations'] as List? ?? const [];
     final contentList = upd['content'] as List? ?? const [];
 

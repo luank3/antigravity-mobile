@@ -1743,9 +1743,12 @@ class AppController extends StateNotifier<AppState> {
     bool sandbox = true,
   }) async {
     final host = state.activeHost;
+    if (host == null) {
+      throw StateError('No host paired or selected. Pair a machine first.');
+    }
     var sid = 'sess-${DateTime.now().millisecondsSinceEpoch}';
 
-    if (host != null && !host.isDemo) {
+    if (!host.isDemo) {
       final res = await transport.rpcCall(host.peerId, 'session/new', {
         'cwd': cwd,
         'mode': mode.toLowerCase(),
@@ -1759,7 +1762,7 @@ class AppController extends StateNotifier<AppState> {
 
     final sess = AgentSession(
       id: sid,
-      hostId: host?.id ?? state.activeHostId,
+      hostId: host.id,
       title: title.trim().isEmpty ? 'Session in ${cwd.split('/').last}' : title.trim(),
       cwd: cwd,
       model: model,

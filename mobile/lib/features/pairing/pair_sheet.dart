@@ -45,6 +45,7 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
 
   bool _hasCameraPermission = false;
   bool _checkingPermission = true;
+  MobileScannerController? _scannerCtrl;
 
   @override
   void initState() {
@@ -60,6 +61,12 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
     final runtime = ref.read(androidRuntimeProvider);
     final granted = await runtime.requestCameraPermission();
     if (mounted) {
+      if (granted && _scannerCtrl == null) {
+        _scannerCtrl = MobileScannerController(
+          detectionSpeed: DetectionSpeed.noDuplicates,
+          facing: CameraFacing.back,
+        );
+      }
       setState(() {
         _hasCameraPermission = granted;
         _checkingPermission = false;
@@ -69,6 +76,7 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
 
   @override
   void dispose() {
+    _scannerCtrl?.dispose();
     _uriCtrl.dispose();
     _pinCtrl.dispose();
     super.dispose();
@@ -288,6 +296,7 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
                       )
                     : (_hasCameraPermission
                         ? MobileScanner(
+                            controller: _scannerCtrl,
                             onDetect: (capture) {
                               if (_qrDetected || _busy) return;
                               for (final b in capture.barcodes) {
@@ -301,6 +310,7 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
                             },
                             errorBuilder: (ctx, err, _) {
                               final isPermission = err.errorCode == MobileScannerErrorCode.permissionDenied;
+                              final detail = err.errorDetails?.message;
                               return Container(
                                 color: c.codeBg,
                                 alignment: Alignment.center,
@@ -317,17 +327,17 @@ class _PairMachineSheetState extends ConsumerState<_PairMachineSheet> {
                                     Text(
                                       isPermission
                                           ? 'Camera permission denied.\nPlease grant permission in App Settings or use Paste URI.'
-                                          : 'Camera unavailable on this device/emulator.\nUse Paste URI or Nearby LAN tab.',
+                                          : 'Camera unavailable${detail != null && detail.isNotEmpty ? ' ($detail)' : ''}.\nUse Paste URI or Nearby LAN tab.',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(color: c.textSecondary, fontSize: 12.5),
                                     ),
-                                    if (isPermission) ...[
-                                      const SizedBox(height: 10),
-                                      OutlinedButton(
-                                        onPressed: _checkCameraPermission,
-                                        child: const Text('Retry Permission'),
-                                      ),
-                                    ],
+                                    const SizedBox(height: 10),
+                                    OutlinedButton(
+                                      onPressed: isPermission
+                                          ? _checkCameraPermission
+                                          : () => unawaited(_scannerCtrl?.start()),
+                                      child: Text(isPermission ? 'Retry Permission' : 'Retry Camera'),
+                                    ),
                                   ],
                                 ),
                               );

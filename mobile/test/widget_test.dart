@@ -596,6 +596,47 @@ void main() {
     expect(spyRuntime.alerts, isNotEmpty);
     expect(spyRuntime.alerts.last.$1, 'Antigravity Test Alert');
   });
+
+  testWidgets('Cannot create session when no host is paired', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final tmpDir = Directory.systemTemp.createTempSync('agy_no_host_test_');
+    addTearDown(() => tmpDir.deleteSync(recursive: true));
+    final transport = MockP2PTransport();
+    addTearDown(transport.dispose);
+
+    final container = ProviderContainer(
+      overrides: [
+        p2pTransportProvider.overrideWithValue(transport),
+        supportDirProvider.overrideWithValue(tmpDir.path),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const AntigravityMobileApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    container.read(appControllerProvider.notifier).toggleDemoHost(false);
+    await tester.pumpAndSettle();
+
+    expect(find.text('New Session'), findsNothing);
+    expect(find.text('No Paired Host'), findsOneWidget);
+    expect(find.text('Pair Machine'), findsOneWidget);
+
+    expect(
+      () => container.read(appControllerProvider.notifier).createNewSession(
+            cwd: '/tmp',
+            title: 'Should Fail',
+            mode: 'Auto',
+            model: 'Neon High',
+          ),
+      throwsStateError,
+    );
+  });
 }
 
 class _SpyAndroidRuntime implements AndroidRuntime {

@@ -226,22 +226,35 @@ class _NewSessionSheetState extends ConsumerState<_NewSessionSheet> {
               ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: _creating
+                onPressed: (_creating || host == null)
                     ? null
                     : () async {
                         final nav = Navigator.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
                         setState(() => _creating = true);
-                        await ref.read(appControllerProvider.notifier).createNewSession(
-                              cwd: _cwdCtrl.text.trim().isEmpty ? '~' : _cwdCtrl.text.trim(),
-                              title: _titleCtrl.text,
-                              mode: effectiveMode,
-                              model: effectiveModel,
-                              sandbox: _sandbox,
-                            );
-                        if (!mounted) return;
-                        nav.pop(true);
+                        try {
+                          await ref.read(appControllerProvider.notifier).createNewSession(
+                                cwd: _cwdCtrl.text.trim().isEmpty ? '~' : _cwdCtrl.text.trim(),
+                                title: _titleCtrl.text,
+                                mode: effectiveMode,
+                                model: effectiveModel,
+                                sandbox: _sandbox,
+                              );
+                          if (!mounted) return;
+                          nav.pop(true);
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() => _creating = false);
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('Failed to create session: $e')),
+                          );
+                        }
                       },
-                child: Text(_creating ? 'Starting ACP session...' : 'Create & Open Session'),
+                child: Text(
+                  host == null
+                      ? 'No Host Paired'
+                      : (_creating ? 'Starting ACP session...' : 'Create & Open Session'),
+                ),
               ),
             ],
           ),

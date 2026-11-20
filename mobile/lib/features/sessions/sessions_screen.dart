@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/common_widgets.dart';
 import '../chat/active_chat_screen.dart';
 import '../hosts/diagnostics_sheet.dart';
+import '../pairing/pair_sheet.dart';
 import 'new_session_sheet.dart';
 
 class SessionsScreen extends ConsumerStatefulWidget {
@@ -35,7 +36,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     final activeHost = state.activeHost;
 
     final filtered = state.sessions.where((s) {
-      if (activeHost != null && s.hostId != activeHost.id) return false;
+      if (activeHost == null) return false;
+      if (s.hostId != activeHost.id) return false;
       if (_filter == 'active' && s.status == 'idle') return false;
       if (_filter == 'approval' && s.status != 'approval') return false;
       if (_query.isNotEmpty) {
@@ -49,16 +51,18 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
 
     return Scaffold(
       backgroundColor: c.bg,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final created = await showNewSessionSheet(context);
-          if (created && context.mounted) {
-            _openChatScreen(context);
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('New Session'),
-      ),
+      floatingActionButton: activeHost == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                final created = await showNewSessionSheet(context);
+                if (created && context.mounted) {
+                  _openChatScreen(context);
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('New Session'),
+            ),
       body: Column(
         children: [
           Padding(
@@ -142,12 +146,39 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
                         SizedBox(
-                          height: 220,
+                          height: 260,
                           child: Center(
-                            child: Text(
-                              'No sessions match your filter.',
-                              style: TextStyle(color: c.textSecondary),
-                            ),
+                            child: activeHost == null
+                                ? Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.dns_outlined, size: 42, color: c.textMuted),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'No Paired Host',
+                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Pair a remote machine to start or resume agent sessions.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(color: c.textSecondary, fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        FilledButton.icon(
+                                          onPressed: () => showPairMachineSheet(context),
+                                          icon: const Icon(Icons.add, size: 18),
+                                          label: const Text('Pair Machine'),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Text(
+                                    'No sessions match your filter.',
+                                    style: TextStyle(color: c.textSecondary),
+                                  ),
                           ),
                         ),
                       ],

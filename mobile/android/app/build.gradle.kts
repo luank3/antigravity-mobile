@@ -46,6 +46,9 @@ android {
 
     buildTypes {
         release {
+            // Keep CameraX, ML Kit, and libp2p FFI reflection/JNI classes intact.
+            isMinifyEnabled = false
+            isShrinkResources = false
             // Uses mobile/android/key.properties when present; falls back to debug keys otherwise.
             signingConfig = if (hasKeystore) {
                 signingConfigs.getByName("release")

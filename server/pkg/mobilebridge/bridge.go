@@ -161,7 +161,7 @@ func AgyNodeStart(configJSON *C.char) *C.char {
 	globalBridge.ctx = ctx
 	globalBridge.cancel = cancel
 	globalBridge.mh = mh
-	globalBridge.eventsCh = make(chan string, 256)
+	globalBridge.eventsCh = make(chan string, 4096)
 	globalBridge.rpcClients = make(map[peer.ID]*peerRPCClient)
 	globalBridge.evCancels = make(map[peer.ID]context.CancelFunc)
 	globalBridge.pairStreams = make(map[string]network.Stream)
@@ -517,7 +517,11 @@ func AgyRPCCall(peerIDPtr *C.char, methodPtr *C.char, paramsJSONPtr *C.char) *C.
 			rc.stream = s
 		}
 
-		_ = rc.stream.SetDeadline(time.Now().Add(45 * time.Second))
+		rpcTimeout := 45 * time.Second
+		if method == "session/load" || method == "session/resume" {
+			rpcTimeout = 120 * time.Second
+		}
+		_ = rc.stream.SetDeadline(time.Now().Add(rpcTimeout))
 		if err := protocol.WriteJSON(rc.stream, req); err != nil {
 			_ = rc.stream.Reset()
 			rc.stream = nil
@@ -528,6 +532,9 @@ func AgyRPCCall(peerIDPtr *C.char, methodPtr *C.char, paramsJSONPtr *C.char) *C.
 			_ = rc.stream.Reset()
 			rc.stream = nil
 			lastErr = err
+			if method == "session/load" || method == "session/resume" {
+				break
+			}
 			continue
 		}
 		lastErr = nil

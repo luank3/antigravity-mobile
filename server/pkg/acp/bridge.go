@@ -22,10 +22,14 @@ import (
 )
 
 const (
-	defaultRingCapacity = 2000
+	defaultRingCapacity = 4096
 	maxScannerTokenSize = 16 << 20
 	maxInlineImageBytes = 5 << 20
 )
+
+type replayCollector struct {
+	items []json.RawMessage
+}
 
 // Config configures the agy acp stdio process bridge.
 type Config struct {
@@ -89,7 +93,7 @@ type Bridge struct {
 	nextSubID   atomic.Uint64
 
 	histMu           sync.Mutex
-	replayCollectors map[string][]json.RawMessage
+	replayCollectors map[string]*replayCollector
 	historyCache     map[string][]json.RawMessage
 
 	closed chan struct{}
@@ -109,7 +113,7 @@ func NewBridge(cfg Config) *Bridge {
 		pendingPerms:     make(map[string]*PendingPermission),
 		ringCap:          defaultRingCapacity,
 		subscribers:      make(map[uint64]chan protocol.EventEnvelope),
-		replayCollectors: make(map[string][]json.RawMessage),
+		replayCollectors: make(map[string]*replayCollector),
 		historyCache:     make(map[string][]json.RawMessage),
 		closed:           make(chan struct{}),
 	}
@@ -514,13 +518,17 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 		params["mcpServers"] = []any{}
 	}
 
+	var myCollector *replayCollector
 	if historyLimit > 0 && sid != "" {
+		myCollector = &replayCollector{items: make([]json.RawMessage, 0, 64)}
 		b.histMu.Lock()
-		b.replayCollectors[sid] = make([]json.RawMessage, 0, 64)
+		b.replayCollectors[sid] = myCollector
 		b.histMu.Unlock()
 		defer func() {
 			b.histMu.Lock()
-			delete(b.replayCollectors, sid)
+			if b.replayCollectors[sid] == myCollector {
+				delete(b.replayCollectors, sid)
+			}
 			b.histMu.Unlock()
 		}()
 	}
@@ -530,10 +538,12 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 		return nil, err
 	}
 
-	if historyLimit > 0 && sid != "" {
+	if myCollector != nil {
 		b.histMu.Lock()
-		collected := b.replayCollectors[sid]
-		delete(b.replayCollectors, sid)
+		if b.replayCollectors[sid] == myCollector {
+			delete(b.replayCollectors, sid)
+		}
+		collected := myCollector.items
 		items := coalesceHistoryUpdates(collected)
 		b.historyCache[sid] = items
 		b.histMu.Unlock()
@@ -604,13 +614,13 @@ func (b *Bridge) collectReplayUpdate(sessionID string, update json.RawMessage) b
 	}
 	b.histMu.Lock()
 	defer b.histMu.Unlock()
-	buf, ok := b.replayCollectors[sessionID]
+	col, ok := b.replayCollectors[sessionID]
 	if !ok {
 		return false
 	}
 	cp := make(json.RawMessage, len(update))
 	copy(cp, update)
-	b.replayCollectors[sessionID] = append(buf, cp)
+	col.items = append(col.items, cp)
 	return true
 }
 
@@ -831,7 +841,7 @@ func (b *Bridge) Subscribe(sinceSeq uint64, sessionIDs []string) ([]protocol.Eve
 	}
 
 	subID := b.nextSubID.Add(1)
-	ch := make(chan protocol.EventEnvelope, 128)
+	ch := make(chan protocol.EventEnvelope, 4096)
 
 	b.evMu.Lock()
 	var backlog []protocol.EventEnvelope

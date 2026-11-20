@@ -61,6 +61,9 @@ class AppState {
   final List<PairedHost> hosts;
   final List<AgentSession> sessions;
   final Map<String, List<ChatMessage>> messagesBySession;
+  final Map<String, int> historyNextCursor;
+  final Map<String, bool> historyHasMore;
+  final bool loadingOlderHistory;
   final List<String> attachedWorkspaceFiles;
   final List<UploadedAttachment> stagedUploads;
   final String currentWorkspacePath;
@@ -104,6 +107,9 @@ class AppState {
     this.hosts = const [],
     this.sessions = const [],
     this.messagesBySession = const {},
+    this.historyNextCursor = const {},
+    this.historyHasMore = const {},
+    this.loadingOlderHistory = false,
     this.attachedWorkspaceFiles = const [],
     this.stagedUploads = const [],
     this.currentWorkspacePath = '.',
@@ -179,6 +185,9 @@ class AppState {
     List<PairedHost>? hosts,
     List<AgentSession>? sessions,
     Map<String, List<ChatMessage>>? messagesBySession,
+    Map<String, int>? historyNextCursor,
+    Map<String, bool>? historyHasMore,
+    bool? loadingOlderHistory,
     List<String>? attachedWorkspaceFiles,
     List<UploadedAttachment>? stagedUploads,
     String? currentWorkspacePath,
@@ -225,6 +234,9 @@ class AppState {
       hosts: hosts ?? this.hosts,
       sessions: sessions ?? this.sessions,
       messagesBySession: messagesBySession ?? this.messagesBySession,
+      historyNextCursor: historyNextCursor ?? this.historyNextCursor,
+      historyHasMore: historyHasMore ?? this.historyHasMore,
+      loadingOlderHistory: loadingOlderHistory ?? this.loadingOlderHistory,
       attachedWorkspaceFiles:
           attachedWorkspaceFiles ?? this.attachedWorkspaceFiles,
       stagedUploads: stagedUploads ?? this.stagedUploads,
@@ -1059,7 +1071,7 @@ class AppController extends StateNotifier<AppState> {
     );
   }
 
-  void _upsertToolCall(String sessionId, Map<String, dynamic> upd) {
+  ChatMessage _buildToolCallMessage(Map<String, dynamic> upd, {String? existingId}) {
     final toolCallId = (upd['toolCallId'] ?? '').toString();
     final name = (upd['name'] ?? '').toString();
     final toolKind = (upd['kind'] ?? 'other').toString();
@@ -1078,12 +1090,7 @@ class AppController extends StateNotifier<AppState> {
       firstPath = (rawInput['Path'] ?? rawInput['path'] ?? '').toString();
     }
 
-    final current = List<ChatMessage>.from(state.messagesBySession[sessionId] ?? const []);
-    final existingIdx = toolCallId.isNotEmpty
-        ? current.indexWhere((m) => m.toolCallId == toolCallId)
-        : -1;
-
-    ChatMessage built;
+    final msgId = existingId ?? 'tc-${DateTime.now().microsecondsSinceEpoch}';
     if (toolKind == 'execute' || name == 'run_command') {
       final cmd = (rawInput['CommandLine'] ?? (title.isNotEmpty ? title : name)).toString();
       var output = (rawOutput['output'] ?? '').toString();
@@ -1092,8 +1099,8 @@ class AppController extends StateNotifier<AppState> {
       }
       final exitCode = rawOutput['exit_code'];
       final exitLabel = exitCode != null ? 'exit $exitCode' : status;
-      built = ChatMessage(
-        id: existingIdx >= 0 ? current[existingIdx].id : 'tc-${DateTime.now().microsecondsSinceEpoch}',
+      return ChatMessage(
+        id: msgId,
         kind: ChatMessageKind.terminal,
         toolCallId: toolCallId,
         toolStatus: status,
@@ -1104,8 +1111,8 @@ class AppController extends StateNotifier<AppState> {
     } else if (toolKind == 'edit') {
       final diffData = _extractDiffLines(contentList);
       final targetPath = firstPath.isNotEmpty ? firstPath : (title.isNotEmpty ? title : name);
-      built = ChatMessage(
-        id: existingIdx >= 0 ? current[existingIdx].id : 'tc-${DateTime.now().microsecondsSinceEpoch}',
+      return ChatMessage(
+        id: msgId,
         kind: ChatMessageKind.toolEdit,
         toolCallId: toolCallId,
         toolStatus: status,
@@ -1116,8 +1123,8 @@ class AppController extends StateNotifier<AppState> {
       );
     } else {
       final displayTitle = title.isNotEmpty ? title : (firstPath.isNotEmpty ? firstPath : name);
-      built = ChatMessage(
-        id: existingIdx >= 0 ? current[existingIdx].id : 'tc-${DateTime.now().microsecondsSinceEpoch}',
+      return ChatMessage(
+        id: msgId,
         kind: ChatMessageKind.toolRead,
         toolCallId: toolCallId,
         toolStatus: status,
@@ -1125,6 +1132,19 @@ class AppController extends StateNotifier<AppState> {
         detail: status,
       );
     }
+  }
+
+  void _upsertToolCall(String sessionId, Map<String, dynamic> upd) {
+    final toolCallId = (upd['toolCallId'] ?? '').toString();
+    final current = List<ChatMessage>.from(state.messagesBySession[sessionId] ?? const []);
+    final existingIdx = toolCallId.isNotEmpty
+        ? current.indexWhere((m) => m.toolCallId == toolCallId)
+        : -1;
+
+    final built = _buildToolCallMessage(
+      upd,
+      existingId: existingIdx >= 0 ? current[existingIdx].id : null,
+    );
 
     if (existingIdx >= 0) {
       current[existingIdx] = built;
@@ -1134,6 +1154,74 @@ class AppController extends StateNotifier<AppState> {
     state = state.copyWith(
       messagesBySession: {...state.messagesBySession, sessionId: current},
     );
+  }
+
+  List<ChatMessage> _parseHistoryItems(String sessionId, List<dynamic> rawItems, {int idOffset = 0}) {
+    final out = <ChatMessage>[];
+    var seq = idOffset;
+    for (final item in rawItems.whereType<Map<String, dynamic>>()) {
+      seq++;
+      final updType = (item['sessionUpdate'] ?? '').toString();
+      switch (updType) {
+        case 'user_message_chunk':
+          final content = item['content'] as Map<String, dynamic>? ?? const {};
+          final txt = (content['text'] ?? '').toString();
+          if (txt.isNotEmpty) {
+            out.add(ChatMessage(
+              id: 'hist-usr-$sessionId-$seq',
+              kind: ChatMessageKind.user,
+              text: txt,
+            ));
+          }
+        case 'agent_thought_chunk':
+          final content = item['content'] as Map<String, dynamic>? ?? const {};
+          final txt = (content['text'] ?? '').toString();
+          if (txt.isNotEmpty) {
+            out.add(ChatMessage(
+              id: 'hist-th-$sessionId-$seq',
+              kind: ChatMessageKind.thinking,
+              text: txt,
+            ));
+          }
+        case 'agent_message_chunk':
+          final content = item['content'] as Map<String, dynamic>? ?? const {};
+          final txt = (content['text'] ?? '').toString();
+          if (txt.isNotEmpty) {
+            out.add(ChatMessage(
+              id: 'hist-asst-$sessionId-$seq',
+              kind: ChatMessageKind.assistant,
+              text: txt,
+            ));
+          }
+        case 'tool_call':
+        case 'tool_call_update':
+          out.add(_buildToolCallMessage(item, existingId: 'hist-tc-$sessionId-$seq'));
+        case 'plan':
+          final entries = item['entries'] as List? ?? const [];
+          if (entries.isNotEmpty) {
+            var done = 0;
+            var activeText = '';
+            for (final e in entries.whereType<Map<String, dynamic>>()) {
+              final st = (e['status'] ?? '').toString();
+              if (st == 'completed') done++;
+              if (activeText.isEmpty && (st == 'in_progress' || st == 'pending')) {
+                activeText = (e['content'] ?? '').toString();
+              }
+            }
+            if (activeText.isEmpty && entries.last is Map<String, dynamic>) {
+              activeText = ((entries.last as Map<String, dynamic>)['content'] ?? 'Plan').toString();
+            }
+            out.add(ChatMessage(
+              id: 'hist-plan-$sessionId-$seq',
+              kind: ChatMessageKind.plan,
+              text: activeText,
+              planCurrent: done,
+              planTotal: entries.length,
+            ));
+          }
+      }
+    }
+    return out;
   }
 
   void _upsertPlan(String sessionId, Map<String, dynamic> upd) {
@@ -1605,6 +1693,7 @@ class AppController extends StateNotifier<AppState> {
         'sessionId': sessionId,
         'cwd': sess.cwd,
         'mcpServers': const [],
+        'historyLimit': 15,
       });
 
       if (res is Map<String, dynamic>) {
@@ -1624,10 +1713,27 @@ class AppController extends StateNotifier<AppState> {
             .toList();
         final currentModeId = (modesObj['currentModeId'] ?? '').toString();
 
+        var nextMessages = state.messagesBySession;
+        var nextCursors = state.historyNextCursor;
+        var nextHasMore = state.historyHasMore;
+        final historyObj = res['history'];
+        if (historyObj is Map<String, dynamic>) {
+          final rawItems = historyObj['items'] as List? ?? const [];
+          final cursor = (historyObj['nextCursor'] as num?)?.toInt() ?? 0;
+          final hasMore = historyObj['hasMore'] == true;
+          final parsed = _parseHistoryItems(sessionId, rawItems, idOffset: cursor);
+          nextMessages = {...state.messagesBySession, sessionId: parsed};
+          nextCursors = {...state.historyNextCursor, sessionId: cursor};
+          nextHasMore = {...state.historyHasMore, sessionId: hasMore};
+        }
+
         state = state.copyWith(
           availableModels: availModels.isNotEmpty ? availModels : state.availableModels,
           availableModes: availModes.isNotEmpty ? availModes : state.availableModes,
           loadedRealSessions: {...state.loadedRealSessions, sessionId},
+          messagesBySession: nextMessages,
+          historyNextCursor: nextCursors,
+          historyHasMore: nextHasMore,
           sessions: state.sessions.map((s) {
             if (s.id != sessionId) return s;
             return s.copyWith(
@@ -1659,6 +1765,47 @@ class AppController extends StateNotifier<AppState> {
         unawaited(refreshWorkspaceData());
       }
     }
+  }
+
+  Future<bool> loadOlderHistory(String sessionId) async {
+    final host = state.activeHost;
+    if (host == null || host.isDemo) return false;
+    if (state.loadingOlderHistory || state.historyHasMore[sessionId] != true) {
+      return false;
+    }
+    final before = state.historyNextCursor[sessionId] ?? 0;
+    if (before <= 0) return false;
+
+    state = state.copyWith(loadingOlderHistory: true);
+    try {
+      final res = await transport.rpcCall(host.peerId, 'session/history', {
+        'sessionId': sessionId,
+        'before': before,
+        'limit': 15,
+      });
+      if (!mounted) return false;
+      if (res is Map<String, dynamic>) {
+        final rawItems = res['items'] as List? ?? const [];
+        final cursor = (res['nextCursor'] as num?)?.toInt() ?? 0;
+        final hasMore = res['hasMore'] == true;
+        final older = _parseHistoryItems(sessionId, rawItems, idOffset: cursor);
+        final existing = state.messagesBySession[sessionId] ?? const <ChatMessage>[];
+        state = state.copyWith(
+          loadingOlderHistory: false,
+          messagesBySession: {
+            ...state.messagesBySession,
+            sessionId: [...older, ...existing],
+          },
+          historyNextCursor: {...state.historyNextCursor, sessionId: cursor},
+          historyHasMore: {...state.historyHasMore, sessionId: hasMore},
+        );
+        return older.isNotEmpty;
+      }
+    } catch (_) {}
+    if (mounted) {
+      state = state.copyWith(loadingOlderHistory: false);
+    }
+    return false;
   }
 
   Future<void> browseWorkspaceDir(String path) async {

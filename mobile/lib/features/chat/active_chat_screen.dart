@@ -23,6 +23,7 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
   bool _hasMounted = false;
   int _prevMsgCount = 0;
   int _prevLastLen = 0;
+  String _prevLastId = '';
 
   @override
   void initState() {
@@ -44,6 +45,33 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
     if (away != _showJumpLatest) {
       setState(() => _showJumpLatest = away);
     }
+    if (pos.pixels <= 120) {
+      _maybeLoadOlderHistory();
+    }
+  }
+
+  void _maybeLoadOlderHistory() {
+    final state = ref.read(appControllerProvider);
+    final sid = state.activeSessionId;
+    if (sid.isEmpty ||
+        state.loadingOlderHistory ||
+        state.historyHasMore[sid] != true ||
+        !_scrollCtrl.hasClients) {
+      return;
+    }
+    final prevMax = _scrollCtrl.position.maxScrollExtent;
+    final prevPixels = _scrollCtrl.position.pixels;
+    ref.read(appControllerProvider.notifier).loadOlderHistory(sid).then((loaded) {
+      if (!loaded || !mounted || !_scrollCtrl.hasClients) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollCtrl.hasClients) return;
+        final newMax = _scrollCtrl.position.maxScrollExtent;
+        final delta = newMax - prevMax;
+        if (delta > 0) {
+          _scrollCtrl.jumpTo((prevPixels + delta).clamp(0.0, newMax));
+        }
+      });
+    });
   }
 
   void _jumpToBottom({bool animate = true}) {
@@ -115,20 +143,26 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
     final session = state.activeSession;
     final messages = state.activeMessages;
     final lastLen = messages.isNotEmpty ? messages.last.text.length : 0;
+    final lastId = messages.isNotEmpty ? messages.last.id : '';
+    final hasMoreHistory = session != null && (state.historyHasMore[session.id] == true);
 
     if (!_hasMounted) {
       _hasMounted = true;
       _prevMsgCount = messages.length;
       _prevLastLen = lastLen;
-    } else if (messages.length > _prevMsgCount || lastLen > _prevLastLen) {
+      _prevLastId = lastId;
+    } else if ((messages.length > _prevMsgCount && lastId != _prevLastId) ||
+        lastLen > _prevLastLen) {
       _prevMsgCount = messages.length;
       _prevLastLen = lastLen;
+      _prevLastId = lastId;
       if (!_showJumpLatest) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom(animate: false));
       }
     } else {
       _prevMsgCount = messages.length;
       _prevLastLen = lastLen;
+      _prevLastId = lastId;
     }
 
     final tokenLabel = state.contextMaxTokens > 0
@@ -262,10 +296,30 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
                         key: const Key('chat-list'),
                         controller: _scrollCtrl,
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-                        itemCount: messages.length,
+                        itemCount: messages.length + (hasMoreHistory ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 11),
                         itemBuilder: (ctx, idx) {
-                          final m = messages[idx];
+                          if (hasMoreHistory && idx == 0) {
+                            return Center(
+                              child: state.loadingOlderHistory
+                                  ? const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 6),
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                    )
+                                  : TextButton(
+                                      onPressed: _maybeLoadOlderHistory,
+                                      child: Text(
+                                        'Load earlier messages',
+                                        style: TextStyle(color: c.textSecondary, fontSize: 12),
+                                      ),
+                                    ),
+                            );
+                          }
+                          final m = messages[hasMoreHistory ? idx - 1 : idx];
                           return ChatMessageTile(
                             msg: m,
                             onToggleThink: () => controller.toggleThinkingExpanded(m.id),

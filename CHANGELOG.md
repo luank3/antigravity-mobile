@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2026-11-20
+
+### Added
+- **Paginated Session History (`historyLimit: 15` + Scroll-Up Loading)**:
+  - `agyd` (`LoadOrResumeSession`) now coalesces replayed `session/update` chunks locally into discrete messages, caches them per session, and returns only the last 15 messages inside the `session/load` response instead of flooding the P2P event stream with thousands of raw chunks.
+  - Added `session/history` RPC on `agyd` (`daemon.go` / `bridge.go`) to page backwards through earlier messages (`before`, `limit: 15`).
+  - Updated `ActiveChatScreen` and `AppController` (`loadOlderHistory`) to automatically load the previous 15 messages when scrolling to the top while preserving the scroll position, with a fallback `"Load earlier messages"` trigger.
+
 ## [1.0.9] - 2026-11-20
 
 ### Fixed

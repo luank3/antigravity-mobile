@@ -321,6 +321,15 @@ func (d *Daemon) dispatchRPC(req protocol.RPCRequest) protocol.RPCResponse {
 		}
 		return makeOK(res)
 
+	case "session/history":
+		var p struct {
+			SessionID string `json:"sessionId"`
+			Before    int    `json:"before"`
+			Limit     int    `json:"limit"`
+		}
+		_ = json.Unmarshal(req.Params, &p)
+		return makeOK(d.acp.GetSessionHistory(p.SessionID, p.Before, p.Limit))
+
 	case "session/close":
 		var p struct {
 			SessionID string `json:"sessionId"`

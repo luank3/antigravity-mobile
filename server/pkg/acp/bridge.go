@@ -88,6 +88,10 @@ type Bridge struct {
 	subscribers map[uint64]chan protocol.EventEnvelope
 	nextSubID   atomic.Uint64
 
+	histMu           sync.Mutex
+	replayCollectors map[string][]json.RawMessage
+	historyCache     map[string][]json.RawMessage
+
 	closed chan struct{}
 }
 
@@ -100,12 +104,14 @@ func NewBridge(cfg Config) *Bridge {
 		cfg.Args = []string{"acp", "--stdio", "--process-per-session"}
 	}
 	return &Bridge{
-		cfg:          cfg,
-		pendingRPCs:  make(map[string]chan jsonRPCEnvelope),
-		pendingPerms: make(map[string]*PendingPermission),
-		ringCap:      defaultRingCapacity,
-		subscribers:  make(map[uint64]chan protocol.EventEnvelope),
-		closed:       make(chan struct{}),
+		cfg:              cfg,
+		pendingRPCs:      make(map[string]chan jsonRPCEnvelope),
+		pendingPerms:     make(map[string]*PendingPermission),
+		ringCap:          defaultRingCapacity,
+		subscribers:      make(map[uint64]chan protocol.EventEnvelope),
+		replayCollectors: make(map[string][]json.RawMessage),
+		historyCache:     make(map[string][]json.RawMessage),
+		closed:           make(chan struct{}),
 	}
 }
 
@@ -215,6 +221,9 @@ func (b *Bridge) handleIncoming(env jsonRPCEnvelope) {
 				Update    json.RawMessage `json:"update"`
 			}
 			_ = json.Unmarshal(env.Params, &p)
+			if b.collectReplayUpdate(p.SessionID, p.Update) {
+				return
+			}
 			b.emitEvent(p.SessionID, "session_update", env.Params)
 		default:
 			b.emitEvent("", env.Method, env.Params)
@@ -473,14 +482,28 @@ func (b *Bridge) NewSession(ctx context.Context, params map[string]any) (json.Ra
 }
 
 // LoadOrResumeSession forwards session/load or session/resume while attaching staging directories.
+// If params["historyLimit"] > 0, replayed session/update messages are coalesced locally and
+// returned as a paginated `history` object inside the RPC result instead of flooding ProtoEvents.
 func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params map[string]any) (json.RawMessage, error) {
 	if params == nil {
 		params = map[string]any{}
 	}
+	historyLimit := 0
+	if rawLimit, ok := params["historyLimit"]; ok {
+		switch v := rawLimit.(type) {
+		case float64:
+			historyLimit = int(v)
+		case int:
+			historyLimit = v
+		}
+		delete(params, "historyLimit")
+	}
+
 	if cwd, _ := params["cwd"].(string); cwd != "" && b.cfg.Workspace != nil {
 		b.cfg.Workspace.AddRoot(cwd)
 	}
-	if sid, _ := params["sessionId"].(string); sid != "" && b.cfg.Uploads != nil {
+	sid, _ := params["sessionId"].(string)
+	if sid != "" && b.cfg.Uploads != nil {
 		if dir, err := b.cfg.Uploads.SessionDir(sid); err == nil {
 			addDirs := toStringSlice(params["additionalDirectories"])
 			addDirs = appendUnique(addDirs, dir)
@@ -490,7 +513,180 @@ func (b *Bridge) LoadOrResumeSession(ctx context.Context, method string, params 
 	if _, ok := params["mcpServers"]; !ok {
 		params["mcpServers"] = []any{}
 	}
-	return b.CallWithAuthRetry(ctx, method, params)
+
+	if historyLimit > 0 && sid != "" {
+		b.histMu.Lock()
+		b.replayCollectors[sid] = make([]json.RawMessage, 0, 64)
+		b.histMu.Unlock()
+		defer func() {
+			b.histMu.Lock()
+			delete(b.replayCollectors, sid)
+			b.histMu.Unlock()
+		}()
+	}
+
+	rawRes, err := b.CallWithAuthRetry(ctx, method, params)
+	if err != nil {
+		return nil, err
+	}
+
+	if historyLimit > 0 && sid != "" {
+		b.histMu.Lock()
+		collected := b.replayCollectors[sid]
+		delete(b.replayCollectors, sid)
+		items := coalesceHistoryUpdates(collected)
+		b.historyCache[sid] = items
+		b.histMu.Unlock()
+
+		total := len(items)
+		start := total - historyLimit
+		if start < 0 {
+			start = 0
+		}
+		page := items[start:]
+		var resMap map[string]any
+		if err := json.Unmarshal(rawRes, &resMap); err == nil && resMap != nil {
+			resMap["history"] = map[string]any{
+				"items":      page,
+				"total":      total,
+				"nextCursor": start,
+				"hasMore":    start > 0,
+			}
+			if encoded, err := json.Marshal(resMap); err == nil {
+				return encoded, nil
+			}
+		}
+	}
+	return rawRes, nil
+}
+
+// GetSessionHistory returns a slice of cached coalesced history items before `before`.
+func (b *Bridge) GetSessionHistory(sessionID string, before int, limit int) map[string]any {
+	if limit <= 0 {
+		limit = 15
+	}
+	b.histMu.Lock()
+	items := b.historyCache[sessionID]
+	b.histMu.Unlock()
+
+	total := len(items)
+	if before < 0 || before > total {
+		before = total
+	}
+	start := before - limit
+	if start < 0 {
+		start = 0
+	}
+	page := items[start:before]
+	if page == nil {
+		page = []json.RawMessage{}
+	}
+	return map[string]any{
+		"items":      page,
+		"total":      total,
+		"nextCursor": start,
+		"hasMore":    start > 0,
+	}
+}
+
+func (b *Bridge) collectReplayUpdate(sessionID string, update json.RawMessage) bool {
+	if sessionID == "" || len(update) == 0 {
+		return false
+	}
+	var head struct {
+		SessionUpdate string `json:"sessionUpdate"`
+	}
+	_ = json.Unmarshal(update, &head)
+	switch head.SessionUpdate {
+	case "user_message_chunk", "agent_thought_chunk", "agent_message_chunk", "tool_call", "tool_call_update", "plan":
+	default:
+		return false
+	}
+	b.histMu.Lock()
+	defer b.histMu.Unlock()
+	buf, ok := b.replayCollectors[sessionID]
+	if !ok {
+		return false
+	}
+	cp := make(json.RawMessage, len(update))
+	copy(cp, update)
+	b.replayCollectors[sessionID] = append(buf, cp)
+	return true
+}
+
+func coalesceHistoryUpdates(raw []json.RawMessage) []json.RawMessage {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make([]json.RawMessage, 0, len(raw))
+	toolIndex := make(map[string]int)
+
+	var pendingKind string
+	var pendingText strings.Builder
+	flushPending := func() {
+		if pendingKind == "" {
+			return
+		}
+		b, _ := json.Marshal(map[string]any{
+			"sessionUpdate": pendingKind,
+			"content": map[string]any{
+				"type": "text",
+				"text": pendingText.String(),
+			},
+		})
+		out = append(out, json.RawMessage(b))
+		pendingKind = ""
+		pendingText.Reset()
+	}
+
+	for _, item := range raw {
+		var m map[string]any
+		if err := json.Unmarshal(item, &m); err != nil {
+			continue
+		}
+		kind, _ := m["sessionUpdate"].(string)
+		switch kind {
+		case "user_message_chunk", "agent_thought_chunk", "agent_message_chunk":
+			content, _ := m["content"].(map[string]any)
+			txt, _ := content["text"].(string)
+			if txt == "" {
+				continue
+			}
+			if pendingKind != "" && pendingKind != kind {
+				flushPending()
+			}
+			pendingKind = kind
+			pendingText.WriteString(txt)
+
+		case "tool_call", "tool_call_update":
+			flushPending()
+			tcID, _ := m["toolCallId"].(string)
+			if tcID != "" {
+				if idx, exists := toolIndex[tcID]; exists {
+					var prev map[string]any
+					if err := json.Unmarshal(out[idx], &prev); err == nil {
+						for k, v := range m {
+							if v != nil && v != "" {
+								prev[k] = v
+							}
+						}
+						if merged, err := json.Marshal(prev); err == nil {
+							out[idx] = json.RawMessage(merged)
+						}
+						continue
+					}
+				}
+				toolIndex[tcID] = len(out)
+			}
+			out = append(out, item)
+
+		default:
+			flushPending()
+			out = append(out, item)
+		}
+	}
+	flushPending()
+	return out
 }
 
 // CloseSession closes an ACP session and cleans up its staged /tmp uploads.

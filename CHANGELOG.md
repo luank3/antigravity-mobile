@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-11-20
+
+### Fixed
+- **Thought Duration Accuracy**: Avoided recording fake `0.1s` durations during historical `session/load` replay or sub-200ms single-chunk emissions; historical thoughts now cleanly show `Thought` while live thinking shows actual elapsed duration.
+- **Session History Reliability**:
+  - Added `_ensureEventSubscription` so `openSession` reuses an active event stream instead of canceling and recreating it right before `session/load` (which previously dropped replayed history events during stream re-registration).
+  - Marked newly created sessions as loaded in `loadedRealSessions` so navigating back and reopening them preserves in-memory history.
+  - Restored previous messages if `session/load` fails instead of wiping history on transient errors.
+
 ## [1.0.8] - 2026-11-20
 
 ### Fixed

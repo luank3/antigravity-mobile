@@ -266,6 +266,7 @@ class AppController extends StateNotifier<AppState> {
   final AndroidRuntime androidRuntime;
   final Map<String, String> _pendingUserEchoes = {};
   final Map<String, DateTime> _thinkingStartTimes = {};
+  final Set<String> _subscribedPeers = {};
   final Set<String> _cancelledUploadPaths = {};
   StreamSubscription<BridgeEvent>? _eventSub;
   StreamSubscription<List<ConnectivityResult>>? _connSub;
@@ -671,7 +672,7 @@ class AppController extends StateNotifier<AppState> {
       );
       if (!mounted) return;
       _updateHostDiagnostics(host.id, diag);
-      await transport.subscribeEvents(host.peerId, state.lastEventSeq);
+      await _ensureEventSubscription(host.peerId, force: true);
       if (!mounted) return;
       _reconnectAttempts = 0;
       _reconnectTimer?.cancel();
@@ -710,7 +711,7 @@ class AppController extends StateNotifier<AppState> {
       );
       if (!mounted) return;
       _updateHostDiagnostics(host.id, diag);
-      await transport.subscribeEvents(host.peerId, state.lastEventSeq);
+      await _ensureEventSubscription(host.peerId, force: true);
       if (!mounted) return;
       succeeded = diag.connected;
       if (succeeded) {
@@ -743,9 +744,18 @@ class AppController extends StateNotifier<AppState> {
     }
   }
 
+  Future<void> _ensureEventSubscription(String peerId, {bool force = false, int? sinceSeq}) async {
+    if (!force && _subscribedPeers.contains(peerId)) return;
+    await transport.subscribeEvents(peerId, sinceSeq ?? state.lastEventSeq);
+    _subscribedPeers.add(peerId);
+  }
+
   void _onBridgeEvent(BridgeEvent ev) {
     if (ev.type == 'events_disconnected') {
       final evPeerId = (ev.raw['peerId'] ?? '').toString();
+      if (evPeerId.isNotEmpty) {
+        _subscribedPeers.remove(evPeerId);
+      }
       final host = state.activeHost;
       if (host != null &&
           !host.isDemo &&
@@ -936,8 +946,8 @@ class AppController extends StateNotifier<AppState> {
     final started = _thinkingStartTimes.remove(msgId);
     if (started == null) return '';
     final ms = DateTime.now().difference(started).inMilliseconds;
-    if (ms < 1000) {
-      return '${(ms / 1000).clamp(0.1, 0.9).toStringAsFixed(1)}s';
+    if (ms < 200) {
+      return '';
     }
     if (ms < 10000) {
       return '${(ms / 1000).toStringAsFixed(1)}s';
@@ -1006,7 +1016,9 @@ class AppController extends StateNotifier<AppState> {
       _finalizeStreaming(sessionId);
       final afterFinalize = List<ChatMessage>.from(state.messagesBySession[sessionId] ?? const []);
       final msgId = 'th-${DateTime.now().microsecondsSinceEpoch}';
-      _thinkingStartTimes[msgId] = DateTime.now();
+      if (!state.loadingSession) {
+        _thinkingStartTimes[msgId] = DateTime.now();
+      }
       afterFinalize.add(ChatMessage(
         id: msgId,
         kind: ChatMessageKind.thinking,
@@ -1399,7 +1411,7 @@ class AppController extends StateNotifier<AppState> {
         relayAddrs: host.relayAddrs,
       );
       _updateHostDiagnostics(host.id, diag);
-      await transport.subscribeEvents(host.peerId, state.lastEventSeq);
+      await _ensureEventSubscription(host.peerId, force: true);
       _syncAndroidRuntime();
       await refreshHostData(state.activeHost ?? host);
     } catch (e) {
@@ -1517,7 +1529,7 @@ class AppController extends StateNotifier<AppState> {
     for (final relayAddr in newHost.relayAddrs) {
       await addRelay(relayAddr);
     }
-    await transport.subscribeEvents(newHost.peerId, 0);
+    await _ensureEventSubscription(newHost.peerId, force: true, sinceSeq: 0);
     _syncAndroidRuntime();
     await refreshHostData(newHost);
     return newHost;
@@ -1580,6 +1592,7 @@ class AppController extends StateNotifier<AppState> {
       return;
     }
 
+    final previousMessages = state.messagesBySession[sessionId] ?? const <ChatMessage>[];
     state = state.copyWith(
       loadingSession: true,
       contextUsedTokens: 0,
@@ -1587,7 +1600,7 @@ class AppController extends StateNotifier<AppState> {
     );
 
     try {
-      await transport.subscribeEvents(host.peerId, state.lastEventSeq);
+      await _ensureEventSubscription(host.peerId);
       final res = await transport.rpcCall(host.peerId, 'session/load', {
         'sessionId': sessionId,
         'cwd': sess.cwd,
@@ -1625,6 +1638,12 @@ class AppController extends StateNotifier<AppState> {
         );
       }
     } catch (e) {
+      if (previousMessages.isNotEmpty &&
+          (state.messagesBySession[sessionId]?.isEmpty ?? true)) {
+        state = state.copyWith(
+          messagesBySession: {...state.messagesBySession, sessionId: previousMessages},
+        );
+      }
       _appendMessage(
         sessionId,
         ChatMessage(
@@ -1828,6 +1847,7 @@ class AppController extends StateNotifier<AppState> {
     state = state.copyWith(
       sessions: [sess, ...state.sessions],
       activeSessionId: sid,
+      loadedRealSessions: {...state.loadedRealSessions, sid},
     );
     return sid;
   }

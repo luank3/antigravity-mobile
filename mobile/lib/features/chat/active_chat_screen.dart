@@ -20,10 +20,6 @@ class ActiveChatScreen extends ConsumerStatefulWidget {
 class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
   final _scrollCtrl = ScrollController();
   bool _showJumpLatest = false;
-  bool _hasMounted = false;
-  int _prevMsgCount = 0;
-  int _prevLastLen = 0;
-  String _prevLastId = '';
 
   @override
   void initState() {
@@ -41,11 +37,12 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
     final pos = _scrollCtrl.position;
-    final away = (pos.maxScrollExtent - pos.pixels) > 140;
+    // In a reversed ListView, 0.0 is the bottom (latest) and maxScrollExtent is the top (oldest).
+    final away = pos.pixels > 140;
     if (away != _showJumpLatest) {
       setState(() => _showJumpLatest = away);
     }
-    if (pos.pixels <= 120) {
+    if (pos.maxScrollExtent > 0 && pos.pixels >= pos.maxScrollExtent - 160) {
       _maybeLoadOlderHistory();
     }
   }
@@ -55,36 +52,22 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
     final sid = state.activeSessionId;
     if (sid.isEmpty ||
         state.loadingOlderHistory ||
-        state.historyHasMore[sid] != true ||
-        !_scrollCtrl.hasClients) {
+        state.historyHasMore[sid] != true) {
       return;
     }
-    final prevMax = _scrollCtrl.position.maxScrollExtent;
-    final prevPixels = _scrollCtrl.position.pixels;
-    ref.read(appControllerProvider.notifier).loadOlderHistory(sid).then((loaded) {
-      if (!loaded || !mounted || !_scrollCtrl.hasClients) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_scrollCtrl.hasClients) return;
-        final newMax = _scrollCtrl.position.maxScrollExtent;
-        final delta = newMax - prevMax;
-        if (delta > 0) {
-          _scrollCtrl.jumpTo((prevPixels + delta).clamp(0.0, newMax));
-        }
-      });
-    });
+    ref.read(appControllerProvider.notifier).loadOlderHistory(sid);
   }
 
   void _jumpToBottom({bool animate = true}) {
     if (!mounted || !_scrollCtrl.hasClients) return;
-    final max = _scrollCtrl.position.maxScrollExtent;
     if (animate) {
       _scrollCtrl.animateTo(
-        max,
+        0,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
       );
     } else {
-      _scrollCtrl.jumpTo(max);
+      _scrollCtrl.jumpTo(0);
     }
   }
 
@@ -142,28 +125,7 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
     final host = state.activeHost;
     final session = state.activeSession;
     final messages = state.activeMessages;
-    final lastLen = messages.isNotEmpty ? messages.last.text.length : 0;
-    final lastId = messages.isNotEmpty ? messages.last.id : '';
     final hasMoreHistory = session != null && (state.historyHasMore[session.id] == true);
-
-    if (!_hasMounted) {
-      _hasMounted = true;
-      _prevMsgCount = messages.length;
-      _prevLastLen = lastLen;
-      _prevLastId = lastId;
-    } else if ((messages.length > _prevMsgCount && lastId != _prevLastId) ||
-        lastLen > _prevLastLen) {
-      _prevMsgCount = messages.length;
-      _prevLastLen = lastLen;
-      _prevLastId = lastId;
-      if (!_showJumpLatest) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToBottom(animate: false));
-      }
-    } else {
-      _prevMsgCount = messages.length;
-      _prevLastLen = lastLen;
-      _prevLastId = lastId;
-    }
 
     final tokenLabel = state.contextMaxTokens > 0
         ? ' · ${(state.contextUsedTokens / 1000).toStringAsFixed(1)}k/${(state.contextMaxTokens / 1000).round()}k'
@@ -295,11 +257,12 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
                       ListView.separated(
                         key: const Key('chat-list'),
                         controller: _scrollCtrl,
+                        reverse: true,
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
                         itemCount: messages.length + (hasMoreHistory ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 11),
                         itemBuilder: (ctx, idx) {
-                          if (hasMoreHistory && idx == 0) {
+                          if (hasMoreHistory && idx == messages.length) {
                             return Center(
                               child: state.loadingOlderHistory
                                   ? const Padding(
@@ -319,7 +282,7 @@ class _ActiveChatScreenState extends ConsumerState<ActiveChatScreen> {
                                     ),
                             );
                           }
-                          final m = messages[hasMoreHistory ? idx - 1 : idx];
+                          final m = messages[messages.length - 1 - idx];
                           return ChatMessageTile(
                             msg: m,
                             onToggleThink: () => controller.toggleThinkingExpanded(m.id),

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-11-20
+
+### Fixed
+- **Rock-Solid Scroll Stability on History Pagination**: Switched `ActiveChatScreen` chat `ListView` to `reverse: true` (bottom-anchored). Prepending earlier history pages no longer shifts the viewport offset or jumps back to the end of the session.
+
 ## [1.0.10] - 2026-11-20
 
 ### Added

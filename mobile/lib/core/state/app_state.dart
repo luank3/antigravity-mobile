@@ -1164,6 +1164,22 @@ class AppController extends StateNotifier<AppState> {
     );
   }
 
+  static final _stagedUploadNoteRe = RegExp(
+    r'\s*\[Uploaded file staged in /tmp: [^\]]*?\(name:\s*([^,\)]+)[^\]]*\]',
+  );
+
+  (String, List<String>) _extractStagedUploadChips(String rawText) {
+    final chips = <String>[];
+    final cleaned = rawText.replaceAllMapped(_stagedUploadNoteRe, (m) {
+      final name = (m.group(1) ?? '').trim();
+      if (name.isNotEmpty) {
+        chips.add('📎 $name');
+      }
+      return '';
+    }).trim();
+    return (cleaned, chips);
+  }
+
   List<ChatMessage> _parseHistoryItems(String sessionId, List<dynamic> rawItems, {int idOffset = 0}) {
     final out = <ChatMessage>[];
     var seq = idOffset;
@@ -1173,12 +1189,14 @@ class AppController extends StateNotifier<AppState> {
       switch (updType) {
         case 'user_message_chunk':
           final content = item['content'] as Map<String, dynamic>? ?? const {};
-          final txt = (content['text'] ?? '').toString();
-          if (txt.isNotEmpty) {
+          final rawTxt = (content['text'] ?? '').toString();
+          final (txt, chips) = _extractStagedUploadChips(rawTxt);
+          if (txt.isNotEmpty || chips.isNotEmpty) {
             out.add(ChatMessage(
               id: 'hist-usr-$sessionId-$seq',
               kind: ChatMessageKind.user,
               text: txt,
+              chips: chips,
             ));
           }
         case 'agent_thought_chunk':
@@ -2180,7 +2198,7 @@ class AppController extends StateNotifier<AppState> {
 
     final chips = [
       ...state.attachedWorkspaceFiles.map((f) => '@$f'),
-      ...readyUploads.map((u) => '📎 ${u.filename} (/tmp)'),
+      ...readyUploads.map((u) => '📎 ${u.filename}'),
     ];
     final files = List<String>.from(state.attachedWorkspaceFiles);
     final uploadIds = readyUploads.map((u) => u.uploadId).where((id) => id.isNotEmpty).toList();

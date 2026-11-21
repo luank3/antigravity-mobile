@@ -90,12 +90,13 @@ class ChatMessageTile extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-            Text(
-              msg.text,
-              style: const TextStyle(color: Colors.white, fontSize: 13.5, height: 1.42),
-            ),
+            if (msg.text.isNotEmpty)
+              Text(
+                msg.text,
+                style: const TextStyle(color: Colors.white, fontSize: 13.5, height: 1.42),
+              ),
             if (msg.chips.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              if (msg.text.isNotEmpty) const SizedBox(height: 6),
               Wrap(
                 spacing: 5,
                 runSpacing: 5,
